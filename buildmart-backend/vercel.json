@@ -1,27 +1,20 @@
 {
-  "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "api/index.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "api/index.js"
+      "source": "/api/:path*",
+      "destination": "/api/index.js"
     },
     {
-      "src": "/assets/(.*)",
-      "dest": "public/assets/$1"
+      "source": "/assets/:path*",
+      "destination": "/public/assets/:path*"
     },
     {
-      "src": "/favicon.ico",
-      "dest": "public/favicon.ico"
+      "source": "/favicon.ico",
+      "destination": "/public/favicon.ico"
     },
     {
-      "src": "/(.*)",
-      "dest": "public/index.html"
+      "source": "/((?!api|assets|favicon.ico).*)",
+      "destination": "/public/index.html"
     }
   ]
 }
