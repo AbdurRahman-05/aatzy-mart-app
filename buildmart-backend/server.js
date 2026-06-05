@@ -1,0 +1,11 @@
+const app = require('./src/app');
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`===============================================`);
+  console.log(`   BuildMart B2B Backend Server Running        `);
+  console.log(`   Port: ${PORT}                               `);
+  console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`===============================================`);
+});
