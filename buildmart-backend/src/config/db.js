@@ -166,6 +166,13 @@ const initDatabaseSchema = async () => {
       ALTER TABLE suppliers 
       ADD COLUMN IF NOT EXISTS materials_providing VARCHAR(512);
     `);
+
+    // Ensure inquiries table has rating and review_text columns
+    await pool.query(`
+      ALTER TABLE inquiries 
+      ADD COLUMN IF NOT EXISTS rating INT,
+      ADD COLUMN IF NOT EXISTS review_text TEXT;
+    `);
     
     // Ensure admin user exists in DB to prevent foreign key issues on verification
     await pool.query(`

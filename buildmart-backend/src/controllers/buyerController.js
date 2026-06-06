@@ -106,6 +106,28 @@ exports.getProductDetail = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
+    // Get supplier's reviews & rating details
+    const ratingRes = await db.query(
+      'SELECT AVG(rating)::numeric(2,1) as avg_rating, COUNT(rating)::int as total_reviews FROM inquiries WHERE supplier_id = $1 AND rating IS NOT NULL',
+      [product.supplier_id]
+    );
+    let avg = 0.0;
+    let count = 0;
+    
+    if (ratingRes.rows[0]) {
+      avg = parseFloat(ratingRes.rows[0].avg_rating || 0.0);
+      count = parseInt(ratingRes.rows[0].total_reviews || 0);
+    }
+
+    if (db.dbMode() === 'memory') {
+      const supplierInquiries = db.mockStore.inquiries.filter(i => i.supplier_id === product.supplier_id && i.rating != null);
+      if (supplierInquiries.length > 0) {
+        const total = supplierInquiries.reduce((sum, i) => sum + i.rating, 0);
+        avg = parseFloat((total / supplierInquiries.length).toFixed(1));
+        count = supplierInquiries.length;
+      }
+    }
+
     // Get Related Products
     const relatedRes = await db.query(
       'SELECT id, name, images FROM products WHERE category_id = $1 AND id != $2 AND status = \'Approved\' LIMIT 4',
@@ -114,7 +136,11 @@ exports.getProductDetail = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      product,
+      product: {
+        ...product,
+        avg_rating: avg,
+        total_reviews: count
+      },
       relatedProducts: relatedRes.rows
     });
   } catch (error) {
@@ -457,6 +483,117 @@ exports.updateInquiryStatus = async (req, res) => {
     return res.status(200).json({ success: true, message: `Inquiry status updated to ${status} successfully` });
   } catch (error) {
     console.error('Update Inquiry Status Error:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
+exports.submitReview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rating, reviewText } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ success: false, message: 'Rating must be between 1 and 5' });
+    }
+
+    // Authenticated user is buyer
+    const userRes = await db.query('SELECT id FROM buyers WHERE user_id = $1', [req.user.id]);
+    let buyer = userRes.rows[0];
+    if (!buyer && db.dbMode() === 'memory') {
+      buyer = db.mockStore.buyers.find(b => b.user_id === req.user.id) || { id: 'mock-buyer-id' };
+    }
+
+    if (!buyer) {
+      return res.status(403).json({ success: false, message: 'Only registered buyers can review transactions' });
+    }
+
+    // Verify inquiry exists, belongs to this buyer, and status is Closed
+    const checkSql = 'SELECT * FROM inquiries WHERE id = $1 AND buyer_id = $2';
+    const checkRes = await db.query(checkSql, [id, buyer.id]);
+    let inquiry = checkRes.rows[0];
+
+    if (!inquiry && db.dbMode() === 'memory') {
+      inquiry = db.mockStore.inquiries.find(i => i.id === id && i.buyer_id === buyer.id);
+    }
+
+    if (!inquiry) {
+      return res.status(404).json({ success: false, message: 'Transaction/Inquiry not found' });
+    }
+
+    if (inquiry.status !== 'Closed') {
+      return res.status(400).json({ success: false, message: 'You can only review transactions once the deal is Closed/Delivered' });
+    }
+
+    // Update rating and review_text
+    await db.query(
+      'UPDATE inquiries SET rating = $1, review_text = $2, updated_at = NOW() WHERE id = $3',
+      [parseInt(rating), reviewText || null, id]
+    );
+
+    if (db.dbMode() === 'memory') {
+      const idx = db.mockStore.inquiries.findIndex(i => i.id === id);
+      if (idx !== -1) {
+        db.mockStore.inquiries[idx].rating = parseInt(rating);
+        db.mockStore.inquiries[idx].review_text = reviewText || null;
+      }
+    }
+
+    // Log this event to the timeline
+    await db.query(
+      'INSERT INTO inquiry_status_logs (inquiry_id, status, notes, changed_by_user_id) VALUES ($1, $2, $3, $4)',
+      [id, 'Closed', `Buyer rated supplier: ${rating} Stars. ${reviewText ? `Review: "${reviewText}"` : ''}`, req.user.id]
+    );
+
+    return res.status(200).json({ success: true, message: 'Review submitted successfully!' });
+  } catch (error) {
+    console.error('Submit Review Error:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
+exports.getSupplierReviews = async (req, res) => {
+  try {
+    const { id } = req.params; // supplier_id
+
+    const sql = `
+      SELECT i.id, i.rating, i.review_text, i.updated_at, u.name as buyer_name
+      FROM inquiries i
+      JOIN buyers b ON i.buyer_id = b.id
+      JOIN users u ON b.user_id = u.id
+      WHERE i.supplier_id = $1 AND i.rating IS NOT NULL
+      ORDER BY i.updated_at DESC
+    `;
+    const result = await db.query(sql, [id]);
+
+    let reviews = result.rows;
+
+    if (reviews.length === 0 && db.dbMode() === 'memory') {
+      reviews = db.mockStore.inquiries
+        .filter(i => i.supplier_id === id && i.rating != null)
+        .map(i => {
+          const b = db.mockStore.buyers.find(buy => buy.id === i.buyer_id) || {};
+          const u = db.mockStore.users.find(usr => usr.id === b.user_id) || { name: 'Demo Buyer' };
+          return {
+            id: i.id,
+            rating: i.rating,
+            review_text: i.review_text,
+            updated_at: i.updated_at || new Date(),
+            buyer_name: u.name
+          };
+        });
+    }
+
+    const total = reviews.reduce((sum, r) => sum + (r.rating || 0), 0);
+    const avgRating = reviews.length > 0 ? parseFloat((total / reviews.length).toFixed(1)) : 0.0;
+
+    return res.status(200).json({
+      success: true,
+      reviews,
+      averageRating: avgRating,
+      totalReviews: reviews.length
+    });
+  } catch (error) {
+    console.error('Get Supplier Reviews Error:', error);
     return res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 };

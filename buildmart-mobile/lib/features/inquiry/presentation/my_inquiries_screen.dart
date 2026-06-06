@@ -15,6 +15,8 @@ class InquiryModel {
   final double? quotedPrice;
   final String deliveryStatus; // Pending, Packed, Dispatched, Delivered
   final double gstPercent;
+  final int? rating;
+  final String? reviewText;
 
   InquiryModel({
     required this.id,
@@ -27,6 +29,8 @@ class InquiryModel {
     this.quotedPrice,
     required this.deliveryStatus,
     required this.gstPercent,
+    this.rating,
+    this.reviewText,
   });
 
   factory InquiryModel.fromJson(Map<String, dynamic> json) {
@@ -44,6 +48,8 @@ class InquiryModel {
       quotedPrice: json['quoted_price'] != null ? double.parse(json['quoted_price'].toString()) : null,
       deliveryStatus: json['delivery_status'] ?? 'Pending',
       gstPercent: json['gst_percent'] != null ? double.parse(json['gst_percent'].toString()) : 18.0,
+      rating: json['rating'] != null ? int.tryParse(json['rating'].toString()) : null,
+      reviewText: json['review_text'],
     );
   }
 }
@@ -312,6 +318,16 @@ class _TimelineViewState extends State<_TimelineView> {
   bool _isUpdating = false;
   InquiryModel? _liveInq;
   List<dynamic> _timelineLogs = [];
+
+  int _ratingInput = 5;
+  final _reviewController = TextEditingController();
+  bool _isSubmittingReview = false;
+
+  @override
+  void dispose() {
+    _reviewController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -691,6 +707,9 @@ class _TimelineViewState extends State<_TimelineView> {
               ),
           ],
           
+          if (inq.status == 'Closed')
+            _buildReviewSection(inq),
+          
           if (_timelineLogs.isNotEmpty) ...[
             const SizedBox(height: 24),
             Text(
@@ -765,6 +784,147 @@ class _TimelineViewState extends State<_TimelineView> {
           ElevatedButton(
             onPressed: () => context.pop(),
             child: const Text('Dismiss Tracker'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReviewSection(InquiryModel inq) {
+    if (inq.rating != null) {
+      return Container(
+        margin: const EdgeInsets.only(top: 24),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.amber.shade50.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.amber.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.stars_rounded, color: Colors.amber, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Your Feedback for Supplier',
+                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: List.generate(5, (index) {
+                return Icon(
+                  index < (inq.rating ?? 0) ? Icons.star_rounded : Icons.star_border_rounded,
+                  color: Colors.amber,
+                  size: 22,
+                );
+              }),
+            ),
+            if (inq.reviewText != null && inq.reviewText!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                '"${inq.reviewText}"',
+                style: const TextStyle(fontSize: 12.5, color: AppColors.textPrimary, fontStyle: FontStyle.italic),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(top: 24),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Rate this Supplier & Transaction',
+            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: 4),
+          const Text('Share your trading experience to build market trust.', style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
+          const SizedBox(height: 12),
+          StatefulBuilder(
+            builder: (context, setReviewState) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      final starVal = index + 1;
+                      return IconButton(
+                        icon: Icon(
+                          _ratingInput >= starVal ? Icons.star_rounded : Icons.star_border_rounded,
+                          color: Colors.amber,
+                          size: 32,
+                        ),
+                        onPressed: () {
+                          setReviewState(() {
+                            _ratingInput = starVal;
+                          });
+                        },
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _reviewController,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Write a Review (Optional)',
+                      hintText: 'e.g. High quality bricks, delivery was quick and neat...',
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  ElevatedButton(
+                    onPressed: _isSubmittingReview
+                        ? null
+                        : () async {
+                            setReviewState(() => _isSubmittingReview = true);
+                            try {
+                              final api = ApiService();
+                              final res = await api.post(
+                                '/buyer/inquiries/${inq.id}/review',
+                                data: {
+                                  'rating': _ratingInput,
+                                  'reviewText': _reviewController.text.trim(),
+                                },
+                              );
+                              if (res.statusCode == 200) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Thank you! Review submitted successfully.')),
+                                  );
+                                }
+                                _fetchTimeline();
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Failed to submit review.')),
+                                );
+                              }
+                            } finally {
+                              setReviewState(() => _isSubmittingReview = false);
+                            }
+                          },
+                    child: _isSubmittingReview
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('Submit Review'),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),

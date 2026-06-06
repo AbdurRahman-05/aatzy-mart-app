@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/provider/auth_provider.dart';
 import 'package:go_router/go_router.dart';
@@ -1071,6 +1072,56 @@ class _SupplierDashboardScreenState extends ConsumerState<SupplierDashboardScree
               ),
             ),
           ),
+          const SizedBox(height: 24),
+
+          // Downloadable Reports & Financial Ledgers
+          Text(
+            'Export Reports & Financial Ledgers',
+            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 15.5, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: 10),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Generate certified sales tax and transaction ledger reports for your accounting and filing.',
+                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _generateReport(type: 'tax'),
+                          icon: const Icon(Icons.receipt_long_rounded, size: 18),
+                          label: const Text('Sales Tax CSV', style: TextStyle(fontSize: 12)),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _generateReport(type: 'ledger'),
+                          icon: const Icon(Icons.account_balance_wallet_rounded, size: 18),
+                          label: const Text('Trade Ledger CSV', style: TextStyle(fontSize: 12)),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1198,6 +1249,143 @@ class _SupplierDashboardScreenState extends ConsumerState<SupplierDashboardScree
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _generateReport({required String type}) async {
+    setState(() => _isLoading = true);
+    try {
+      final api = ApiService();
+      final res = await api.get('/supplier/reports/export?type=$type');
+      if (res.statusCode == 200 && res.data != null) {
+        final csvData = res.data.toString();
+        if (mounted) {
+          _showReportPreviewDialog(type, csvData);
+        }
+      } else {
+        throw Exception('Failed to load report');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to generate report.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showReportPreviewDialog(String type, String csvContent) {
+    final List<String> lines = csvContent.split('\n');
+    final String headersLine = lines.isNotEmpty ? lines[0] : '';
+    final List<String> headers = headersLine.split(',');
+
+    final List<List<String>> rows = [];
+    for (int i = 1; i < lines.length; i++) {
+      if (lines[i].trim().isNotEmpty) {
+        final List<String> row = [];
+        bool inQuotes = false;
+        StringBuffer currentField = StringBuffer();
+        for (int j = 0; j < lines[i].length; j++) {
+          final char = lines[i][j];
+          if (char == '"') {
+            inQuotes = !inQuotes;
+          } else if (char == ',' && !inQuotes) {
+            row.add(currentField.toString());
+            currentField.clear();
+          } else {
+            currentField.write(char);
+          }
+        }
+        row.add(currentField.toString());
+        rows.add(row);
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(
+                type == 'tax' ? Icons.receipt_long_rounded : Icons.account_balance_wallet_rounded,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                type == 'tax' ? 'Sales Tax Report' : 'Trade Transaction Ledger',
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: MediaQuery.of(context).size.height * 0.5,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Below is a preview of the generated CSV file. You can copy the contents to clipboard to import into Excel or Google Sheets.',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.border),
+                      borderRadius: BorderRadius.circular(8),
+                      color: AppColors.background,
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.vertical,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: DataTable(
+                          headingRowHeight: 40,
+                          dataRowMinHeight: 35,
+                          dataRowMaxHeight: 45,
+                          headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.textPrimary),
+                          dataTextStyle: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                          columns: headers.map((h) => DataColumn(label: Text(h.replaceAll('"', '')))).toList(),
+                          rows: rows.map((r) {
+                            return DataRow(
+                              cells: r.map((c) => DataCell(Text(c.replaceAll('"', '')))).toList(),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: csvContent));
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Report CSV copied to clipboard!')),
+                  );
+                }
+              },
+              icon: const Icon(Icons.copy_all_rounded, size: 16),
+              label: const Text('Copy CSV'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

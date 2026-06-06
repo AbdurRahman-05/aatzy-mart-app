@@ -29,4 +29,7 @@ router.delete('/services/:id', supplierController.deleteService);
 router.get('/leads', supplierController.getLeads);
 router.put('/leads/:id/status', supplierController.updateLeadStatus);
 
+// Reports
+router.get('/reports/export', supplierController.exportReport);
+
 module.exports = router;

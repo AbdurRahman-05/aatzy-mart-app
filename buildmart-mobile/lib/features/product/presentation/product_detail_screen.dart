@@ -147,6 +147,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.bold),
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${p['avg_rating'] ?? "0.0"} (${p['total_reviews'] ?? 0} reviews)',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -221,6 +228,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(p['company_name'] ?? 'BuildMart Supplier', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary)),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.star_rounded, color: Colors.amber, size: 14),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${p['avg_rating'] ?? "0.0"} (${p['total_reviews'] ?? 0} Reviews)',
+                                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                  ),
+                                ],
+                              ),
                               const SizedBox(height: 4),
                               Row(
                                 children: [

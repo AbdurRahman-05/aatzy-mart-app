@@ -487,3 +487,85 @@ exports.getServices = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 };
+
+exports.exportReport = async (req, res) => {
+  try {
+    const { type = 'ledger' } = req.query; // 'tax' or 'ledger'
+    const supplierId = await getSupplierId(req.user.id);
+    if (!supplierId) {
+      return res.status(403).json({ success: false, message: 'Supplier profile not found' });
+    }
+
+    const sql = `
+      SELECT i.*, u.name as buyer_name, p.name as product_name, s.name as service_name, p.cost_price as product_cost
+      FROM inquiries i
+      JOIN buyers b ON i.buyer_id = b.id
+      JOIN users u ON b.user_id = u.id
+      LEFT JOIN products p ON i.product_id = p.id
+      LEFT JOIN services s ON i.service_id = s.id
+      WHERE i.supplier_id = $1 AND i.status = 'Closed'
+      ORDER BY i.updated_at DESC
+    `;
+    const result = await db.query(sql, [supplierId]);
+    let rows = result.rows;
+
+    if (rows.length === 0 && db.dbMode() === 'memory') {
+      rows = db.mockStore.inquiries
+        .filter(i => i.supplier_id === supplierId && i.status === 'Closed')
+        .map(i => {
+          const b = db.mockStore.buyers.find(buy => buy.id === i.buyer_id) || {};
+          const u = db.mockStore.users.find(usr => usr.id === b.user_id) || { name: 'Demo Buyer' };
+          const p = db.mockStore.products.find(prod => prod.id === i.product_id) || { name: 'Demo Product', cost_price: 310.00 };
+          const s = db.mockStore.services.find(serv => serv.id === i.service_id) || {};
+          return {
+            ...i,
+            buyer_name: u.name,
+            product_name: p.name || null,
+            service_name: s.name || null,
+            product_cost: p.cost_price
+          };
+        });
+    }
+
+    let csvContent = '';
+
+    if (type === 'tax') {
+      csvContent = 'Date,Buyer Name,Product/Service,Quantity,Unit,Quoted Price (INR),Taxable Value (INR),GST %,GST Amount (INR),Total Billing (INR)\n';
+      for (const r of rows) {
+        const dateStr = r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+        const name = r.product_name || r.service_name || r.title || 'Inquiry';
+        const qty = parseFloat(r.quantity || 0);
+        const price = parseFloat(r.quoted_price || 0);
+        const gstPercent = parseFloat(r.gst_percent || 18.0);
+        const taxable = qty * price;
+        const gstAmount = taxable * (gstPercent / 100);
+        const total = taxable + gstAmount;
+
+        csvContent += `"${dateStr}","${r.buyer_name}","${name.replace(/"/g, '""')}",${qty},"${r.unit}",${price},${taxable.toFixed(2)},${gstPercent},${gstAmount.toFixed(2)},${total.toFixed(2)}\n`;
+      }
+    } else {
+      // default: ledger
+      csvContent = 'Date,Transaction ID,Buyer Name,Product/Service,Quantity,Revenue (INR),COGS (INR),Net Profit (INR),Margin %\n';
+      for (const r of rows) {
+        const dateStr = r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+        const name = r.product_name || r.service_name || r.title || 'Inquiry';
+        const qty = parseFloat(r.quantity || 0);
+        const price = parseFloat(r.quoted_price || 0);
+        const cost = parseFloat(r.product_cost || r.cost_price || 310.00);
+        const revenue = qty * price;
+        const cogs = qty * cost;
+        const profit = revenue - cogs;
+        const margin = revenue > 0 ? ((profit / revenue) * 100).toFixed(1) : '0.0';
+
+        csvContent += `"${dateStr}","${r.id}","${r.buyer_name}","${name.replace(/"/g, '""')}",${qty},${revenue.toFixed(2)},${cogs.toFixed(2)},${profit.toFixed(2)},${margin}\n`;
+      }
+    }
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=buildmart_${type}_report.csv`);
+    return res.status(200).send(csvContent);
+  } catch (error) {
+    console.error('Export Report Error:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
