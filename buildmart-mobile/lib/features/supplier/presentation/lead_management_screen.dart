@@ -167,6 +167,14 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         return Colors.orangeAccent;
       case 'Contacted':
         return AppColors.secondary;
+      case 'Quote Sent':
+        return Colors.purpleAccent;
+      case 'Accepted':
+        return Colors.green;
+      case 'Rejected':
+        return Colors.redAccent;
+      case 'Lead Rejected':
+        return Colors.grey;
       case 'Closed':
         return AppColors.success;
       default:
@@ -174,12 +182,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     }
   }
 
-  void _showStatusUpdateDialog(LeadItem lead) {
-    String selectedStatus = lead.status;
-    String selectedDeliveryStatus = lead.deliveryStatus;
+  void _showQuoteDialog(LeadItem lead, {bool isNewQuote = false}) {
     double selectedGstPercent = lead.gstPercent;
-    
-    final notesController = TextEditingController(text: 'Updated status to $selectedStatus');
+    final notesController = TextEditingController(text: isNewQuote ? 'Generated a revised quote for the buyer.' : 'Quote proposed to the buyer.');
     final quotedPriceController = TextEditingController(text: lead.quotedPrice?.toString() ?? '410.00');
 
     showDialog(
@@ -187,79 +192,42 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            final isClosed = selectedStatus == 'Closed';
-
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Text('Update Lead & Quote Details'),
+              title: Text(isNewQuote ? 'Generate Revised Quote' : 'Propose Price Quotation'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedStatus,
-                      decoration: const InputDecoration(labelText: 'Select Status'),
-                      items: ['New', 'Viewed', 'Contacted', 'Closed'].map((s) {
-                        return DropdownMenuItem(value: s, child: Text(s));
+                    TextFormField(
+                      controller: quotedPriceController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        labelText: 'Quoted Rate per Unit (₹)',
+                        hintText: 'e.g. 410.00',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<double>(
+                      initialValue: selectedGstPercent,
+                      decoration: const InputDecoration(labelText: 'GST Percent (%)'),
+                      items: [5.0, 12.0, 18.0, 28.0].map((gst) {
+                        return DropdownMenuItem(value: gst, child: Text('${gst.toStringAsFixed(0)}%'));
                       }).toList(),
                       onChanged: (val) {
                         if (val != null) {
                           setDialogState(() {
-                            selectedStatus = val;
-                            notesController.text = 'Updated status to $val';
+                            selectedGstPercent = val;
                           });
                         }
                       },
                     ),
                     const SizedBox(height: 12),
-                    
-                    if (isClosed) ...[
-                      TextFormField(
-                        controller: quotedPriceController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(
-                          labelText: 'Quoted Rate per Unit (₹)',
-                          hintText: 'e.g. 410.00',
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedDeliveryStatus,
-                        decoration: const InputDecoration(labelText: 'Delivery Stage'),
-                        items: ['Pending', 'Packed', 'Dispatched', 'Delivered'].map((stage) {
-                          return DropdownMenuItem(value: stage, child: Text(stage));
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setDialogState(() {
-                              selectedDeliveryStatus = val;
-                            });
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<double>(
-                        initialValue: selectedGstPercent,
-                        decoration: const InputDecoration(labelText: 'GST Percent (%)'),
-                        items: [5.0, 12.0, 18.0, 28.0].map((gst) {
-                          return DropdownMenuItem(value: gst, child: Text('${gst.toStringAsFixed(0)}%'));
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setDialogState(() {
-                              selectedGstPercent = val;
-                            });
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-
                     TextField(
                       controller: notesController,
                       decoration: const InputDecoration(
-                        labelText: 'Timeline Notes',
-                        hintText: 'Enter call details or quotation notes...',
+                        labelText: 'Timeline/Negotiation Notes',
+                        hintText: 'Enter specifications or timeline details...',
                       ),
                       maxLines: 2,
                     ),
@@ -274,17 +242,83 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
-                    final qPrice = double.tryParse(quotedPriceController.text);
+                    final qPrice = double.tryParse(quotedPriceController.text) ?? 0.0;
                     _updateLeadStatus(
                       lead,
-                      selectedStatus,
+                      'Quote Sent',
                       notesController.text.trim(),
                       quotedPrice: qPrice,
-                      deliveryStatus: selectedDeliveryStatus,
                       gstPercent: selectedGstPercent,
                     );
                   },
-                  child: const Text('Submit Update'),
+                  child: const Text('Send Quote'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showCloseDealDialog(LeadItem lead) {
+    String selectedDeliveryStatus = lead.deliveryStatus;
+    final notesController = TextEditingController(text: lead.status == 'Closed' ? 'Updated delivery details.' : 'Deal finalized and closed successfully!');
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text(lead.status == 'Closed' ? 'Update Delivery Tracking' : 'Finalize & Close Deal'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedDeliveryStatus,
+                      decoration: const InputDecoration(labelText: 'Delivery Stage'),
+                      items: ['Pending', 'Packed', 'Dispatched', 'Delivered'].map((stage) {
+                        return DropdownMenuItem(value: stage, child: Text(stage));
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDialogState(() {
+                            selectedDeliveryStatus = val;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: notesController,
+                      decoration: const InputDecoration(
+                        labelText: 'Timeline Notes',
+                        hintText: 'Enter dispatch or receipt info...',
+                      ),
+                      maxLines: 2,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _updateLeadStatus(
+                      lead,
+                      'Closed',
+                      notesController.text.trim(),
+                      deliveryStatus: selectedDeliveryStatus,
+                    );
+                  },
+                  child: Text(lead.status == 'Closed' ? 'Save Status' : 'Close Deal'),
                 ),
               ],
             );
@@ -381,16 +415,18 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                                       ],
                                     ),
                                     
-                                    if (lead.status == 'Closed') ...[
-                                      const SizedBox(height: 10),
-                                      Row(
-                                        children: [
-                                          _buildBadge(Icons.monetization_on_outlined, 'Quoted: ₹${lead.quotedPrice?.toStringAsFixed(2) ?? "N/A"}'),
-                                          const SizedBox(width: 8),
-                                          _buildBadge(Icons.local_shipping_outlined, 'Shipment: ${lead.deliveryStatus}'),
-                                        ],
-                                      ),
-                                    ],
+                                     if (lead.quotedPrice != null) ...[
+                                       const SizedBox(height: 10),
+                                       Row(
+                                         children: [
+                                           _buildBadge(Icons.monetization_on_outlined, 'Quoted: ₹${lead.quotedPrice!.toStringAsFixed(2)}'),
+                                           if (lead.status == 'Closed') ...[
+                                             const SizedBox(width: 8),
+                                             _buildBadge(Icons.local_shipping_outlined, 'Shipment: ${lead.deliveryStatus}'),
+                                           ],
+                                         ],
+                                       ),
+                                     ],
                                     
                                     const Divider(height: 24, color: AppColors.border),
 
@@ -423,37 +459,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                                     ),
                                     const SizedBox(height: 16),
 
-                                    // Actions Buttons
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: OutlinedButton.icon(
-                                            onPressed: () => _showStatusUpdateDialog(lead),
-                                            icon: const Icon(Icons.edit_note_rounded, size: 18),
-                                            label: const Text('Update Deal & Quote'),
-                                            style: OutlinedButton.styleFrom(
-                                              padding: const EdgeInsets.symmetric(vertical: 10),
-                                              side: const BorderSide(color: AppColors.primary),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: ElevatedButton.icon(
-                                            onPressed: () {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(content: Text('Calling Buyer ${lead.buyerName}: ${lead.buyerPhone}...')),
-                                              );
-                                            },
-                                            icon: const Icon(Icons.phone_in_talk_rounded, size: 16),
-                                            label: const Text('Call Buyer'),
-                                            style: ElevatedButton.styleFrom(
-                                              padding: const EdgeInsets.symmetric(vertical: 10),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                                                        // Actions Buttons
+                                    _buildActionButtons(lead),
                                   ],
                                 ),
                               ),
@@ -463,6 +470,185 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+    Widget _buildActionButtons(LeadItem lead) {
+    if (lead.status == 'Lead Rejected') {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: const Text(
+          'This lead has been rejected/terminated.',
+          style: TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
+    if (lead.status == 'Quote Sent') {
+      return Row(
+        children: [
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.purple.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.purple.shade100),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.hourglass_empty_rounded, size: 16, color: Colors.purple),
+                  SizedBox(width: 6),
+                  Text('Awaiting Buyer\'s Quote Decision', style: TextStyle(color: Colors.purple, fontSize: 12.5, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          OutlinedButton(
+            onPressed: () => _updateLeadStatus(lead, 'Lead Rejected', 'Lead rejected by supplier during negotiation.'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.redAccent,
+              side: const BorderSide(color: Colors.redAccent),
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+            ),
+            child: const Text('Reject Lead'),
+          ),
+        ],
+      );
+    }
+
+    if (lead.status == 'Accepted') {
+      return Row(
+        children: [
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () => _showCloseDealDialog(lead),
+              icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
+              label: const Text('Finalize & Close Deal'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Calling Buyer ${lead.buyerName}: ${lead.buyerPhone}...')),
+                );
+              },
+              icon: const Icon(Icons.phone_in_talk_rounded, size: 16),
+              label: const Text('Call Buyer'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (lead.status == 'Rejected') {
+      return Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => _showQuoteDialog(lead, isNewQuote: true),
+              icon: const Icon(Icons.restart_alt_rounded, size: 18),
+              label: const Text('Generate New Quote'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => _updateLeadStatus(lead, 'Lead Rejected', 'Supplier rejected lead after buyer rejected the quote.'),
+              icon: const Icon(Icons.cancel_outlined, size: 18),
+              label: const Text('Reject Lead'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.redAccent,
+                side: const BorderSide(color: Colors.redAccent),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (lead.status == 'Closed') {
+      return Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => _showCloseDealDialog(lead),
+              icon: const Icon(Icons.local_shipping_outlined, size: 18),
+              label: const Text('Update Delivery Stage'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Calling Buyer ${lead.buyerName}: ${lead.buyerPhone}...')),
+                );
+              },
+              icon: const Icon(Icons.phone_in_talk_rounded, size: 16),
+              label: const Text('Call Buyer'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Default status: New, Viewed, Contacted
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () => _showQuoteDialog(lead),
+            icon: const Icon(Icons.send_rounded, size: 18),
+            label: const Text('Send Quote'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              side: const BorderSide(color: AppColors.primary),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Calling Buyer ${lead.buyerName}: ${lead.buyerPhone}...')),
+              );
+            },
+            icon: const Icon(Icons.phone_in_talk_rounded, size: 16),
+            label: const Text('Call Buyer'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

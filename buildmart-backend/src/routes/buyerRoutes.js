@@ -14,6 +14,7 @@ router.get('/news', buyerController.getNews);
 router.post('/inquiries', authenticate, buyerController.sendInquiry);
 router.get('/inquiries', authenticate, buyerController.getInquiries);
 router.get('/inquiries/:id', authenticate, buyerController.getInquiryDetail);
+router.put('/inquiries/:id/status', authenticate, buyerController.updateInquiryStatus);
 router.post('/favorites', authenticate, buyerController.toggleFavorite);
 
 module.exports = router;

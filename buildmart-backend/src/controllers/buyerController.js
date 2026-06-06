@@ -393,3 +393,71 @@ exports.getNews = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 };
+
+// 10. UPDATE INQUIRY STATUS (Accept/Reject Quote)
+exports.updateInquiryStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, notes } = req.body;
+
+    const buyerRes = await db.query('SELECT id FROM buyers WHERE user_id = $1', [req.user.id]);
+    let buyer = buyerRes.rows[0];
+    if (!buyer && db.dbMode() === 'memory') {
+      buyer = db.mockStore.buyers.find(b => b.user_id === req.user.id) || { id: 'mock-buyer-id' };
+    }
+
+    if (!buyer) {
+      return res.status(403).json({ success: false, message: 'Buyer profile not found' });
+    }
+
+    const checkSql = 'SELECT id, supplier_id, title FROM inquiries WHERE id = $1 AND buyer_id = $2';
+    const checkRes = await db.query(checkSql, [id, buyer.id]);
+    let inquiry = checkRes.rows[0];
+    if (!inquiry && db.dbMode() === 'memory') {
+      inquiry = db.mockStore.inquiries.find(i => i.id === id && i.buyer_id === buyer.id);
+    }
+
+    if (!inquiry) {
+      return res.status(404).json({ success: false, message: 'Inquiry not found' });
+    }
+
+    await db.query(
+      'UPDATE inquiries SET status = $1, updated_at = NOW() WHERE id = $2',
+      [status, id]
+    );
+
+    if (db.dbMode() === 'memory') {
+      const idx = db.mockStore.inquiries.findIndex(i => i.id === id);
+      if (idx !== -1) {
+        db.mockStore.inquiries[idx].status = status;
+      }
+    }
+
+    await db.query(
+      'INSERT INTO inquiry_status_logs (inquiry_id, status, notes, changed_by_user_id) VALUES ($1, $2, $3, $4)',
+      [id, status, notes || `Quote ${status} by buyer.`, req.user.id]
+    );
+
+    const supplierUserRes = await db.query('SELECT user_id FROM suppliers WHERE id = $1', [inquiry.supplier_id]);
+    const supplierUserId = supplierUserRes.rows[0]?.user_id || db.mockStore.suppliers.find(s => s.id === inquiry.supplier_id)?.user_id;
+
+    if (supplierUserId) {
+      await db.query(
+        'INSERT INTO notifications (user_id, title, body, payload) VALUES ($1, $2, $3, $4)',
+        [
+          supplierUserId,
+          `Quote ${status}!`,
+          `The buyer has ${status.toLowerCase()} your quote for "${inquiry.title}".`,
+          JSON.stringify({ inquiryId: id, type: 'quote_response', status })
+        ]
+      );
+      console.log(`[PUSH-NOTIFICATION] Sent to Supplier (${supplierUserId}): Quote ${status}!`);
+    }
+
+    return res.status(200).json({ success: true, message: `Inquiry status updated to ${status} successfully` });
+  } catch (error) {
+    console.error('Update Inquiry Status Error:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+

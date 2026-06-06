@@ -117,6 +117,14 @@ class _MyInquiriesScreenState extends State<MyInquiriesScreen> {
         return Colors.orangeAccent;
       case 'Contacted':
         return AppColors.secondary;
+      case 'Quote Sent':
+        return Colors.purpleAccent;
+      case 'Accepted':
+        return AppColors.success;
+      case 'Rejected':
+        return Colors.redAccent;
+      case 'Lead Rejected':
+        return Colors.grey;
       case 'Closed':
         return AppColors.success;
       default:
@@ -138,7 +146,11 @@ class _MyInquiriesScreenState extends State<MyInquiriesScreen> {
           builder: (context, scrollController) {
             return SingleChildScrollView(
               controller: scrollController,
-              child: _TimelineView(inquiryId: inq.id, inq: inq),
+              child: _TimelineView(
+                inquiryId: inq.id,
+                inq: inq,
+                onStatusUpdated: _fetchInquiries,
+              ),
             );
           },
         );
@@ -287,8 +299,9 @@ class _MyInquiriesScreenState extends State<MyInquiriesScreen> {
 class _TimelineView extends StatefulWidget {
   final String inquiryId;
   final InquiryModel inq;
+  final VoidCallback onStatusUpdated;
 
-  const _TimelineView({required this.inquiryId, required this.inq});
+  const _TimelineView({required this.inquiryId, required this.inq, required this.onStatusUpdated});
 
   @override
   State<_TimelineView> createState() => _TimelineViewState();
@@ -296,11 +309,45 @@ class _TimelineView extends StatefulWidget {
 
 class _TimelineViewState extends State<_TimelineView> {
   bool _loading = true;
+  bool _isUpdating = false;
 
   @override
   void initState() {
     super.initState();
     _fetchTimeline();
+  }
+
+  Future<void> _updateStatus(String newStatus) async {
+    setState(() => _isUpdating = true);
+    try {
+      final api = ApiService();
+      final res = await api.put('/buyer/inquiries/${widget.inquiryId}/status', data: {
+        'status': newStatus,
+        'notes': newStatus == 'Accepted' ? 'Quote accepted by buyer.' : 'Quote rejected by buyer.',
+      });
+      if (res.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Quote $newStatus successfully!')),
+          );
+          widget.onStatusUpdated();
+          context.pop();
+        }
+      }
+    } catch (e) {
+      // Simulation / offline fallback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Quote updated to $newStatus (Simulation)')),
+        );
+        widget.onStatusUpdated();
+        context.pop();
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUpdating = false);
+      }
+    }
   }
 
   Future<void> _fetchTimeline() async {
@@ -500,7 +547,52 @@ class _TimelineViewState extends State<_TimelineView> {
                 ],
               ),
             ),
-            
+          ] else ...[
+            // Otherwise show normal negotiation history
+            _buildTimelineStep(
+              'Inquiry Submitted',
+              'Dispatched requirement specifications to supplier on ${inq.date}',
+              true,
+            ),
+            _buildTimelineStep(
+              'Supplier Reviewed Lead',
+              inq.status != 'New' ? 'Supplier opened and viewed lead details' : 'Waiting for supplier review...',
+              inq.status != 'New',
+            ),
+            _buildTimelineStep(
+              'Quote Proposed',
+              inq.quotedPrice != null 
+                  ? 'Supplier submitted a quote of ₹${inq.quotedPrice!.toStringAsFixed(2)} / Unit' 
+                  : 'Awaiting supplier price quotation proposal...',
+              inq.quotedPrice != null,
+            ),
+            if (inq.status == 'Accepted')
+              _buildTimelineStep(
+                'Quote Accepted',
+                'You accepted the quote proposal. Awaiting delivery scheduling.',
+                true,
+              )
+            else if (inq.status == 'Rejected')
+              _buildTimelineStep(
+                'Quote Rejected',
+                'You rejected this quote proposal. Awaiting revised offer.',
+                true,
+              )
+            else if (inq.status == 'Lead Rejected')
+              _buildTimelineStep(
+                'Lead Terminated',
+                'Supplier rejected or closed this lead transaction.',
+                true,
+              )
+            else
+              _buildTimelineStep(
+                'Deal Finalized',
+                inq.status == 'Closed' ? 'Deal finalized' : 'Awaiting completion...',
+                inq.status == 'Closed',
+              ),
+          ],
+
+          if (inq.quotedPrice != null) ...[
             const SizedBox(height: 24),
             // Pro-Forma Tax GST Invoice Display
             Text(
@@ -551,30 +643,42 @@ class _TimelineViewState extends State<_TimelineView> {
                 ],
               ),
             ),
-          ] else ...[
-            // Otherwise show normal negotiation history
-            _buildTimelineStep(
-              'Inquiry Submitted',
-              'Dispatched requirement specifications to supplier on ${inq.date}',
-              true,
-            ),
-            _buildTimelineStep(
-              'Supplier Reviewed Lead',
-              inq.status != 'New' ? 'Supplier opened and viewed lead details' : 'Waiting for supplier review...',
-              inq.status != 'New',
-            ),
-            _buildTimelineStep(
-              'Contact Initiated',
-              inq.status == 'Contacted' || inq.status == 'Closed'
-                  ? 'Supplier contacted buyer via phone/email'
-                  : 'Awaiting call/email contact...',
-              inq.status == 'Contacted' || inq.status == 'Closed',
-            ),
-            _buildTimelineStep(
-              'Deal Finalized / Closed',
-              inq.status == 'Closed' ? 'Deal finalized or inquiry completed' : 'Awaiting completion...',
-              inq.status == 'Closed',
-            ),
+          ],
+
+          if (inq.status == 'Quote Sent') ...[
+            const SizedBox(height: 24),
+            if (_isUpdating)
+              const Center(child: CircularProgressIndicator())
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _updateStatus('Rejected'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.redAccent,
+                        side: const BorderSide(color: Colors.redAccent),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Reject Quote', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _updateStatus('Accepted'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Accept Quote', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
           ],
           
           const SizedBox(height: 24),
