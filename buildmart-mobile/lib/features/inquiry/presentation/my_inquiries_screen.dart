@@ -310,6 +310,8 @@ class _TimelineView extends StatefulWidget {
 class _TimelineViewState extends State<_TimelineView> {
   bool _loading = true;
   bool _isUpdating = false;
+  InquiryModel? _liveInq;
+  List<dynamic> _timelineLogs = [];
 
   @override
   void initState() {
@@ -353,7 +355,15 @@ class _TimelineViewState extends State<_TimelineView> {
   Future<void> _fetchTimeline() async {
     try {
       final api = ApiService();
-      await api.get('/buyer/inquiries/${widget.inquiryId}');
+      final res = await api.get('/buyer/inquiries/${widget.inquiryId}');
+      if (res.statusCode == 200 && res.data != null) {
+        setState(() {
+          if (res.data['inquiry'] != null) {
+            _liveInq = InquiryModel.fromJson(res.data['inquiry']);
+          }
+          _timelineLogs = res.data['timeline'] ?? [];
+        });
+      }
     } catch (e) {
       // Offline / network failure fallback
     } finally {
@@ -463,7 +473,7 @@ class _TimelineViewState extends State<_TimelineView> {
       );
     }
 
-    final inq = widget.inq;
+    final inq = _liveInq ?? widget.inq;
     
     // Delivery tracking variables
     final ds = inq.deliveryStatus;
@@ -681,6 +691,76 @@ class _TimelineViewState extends State<_TimelineView> {
               ),
           ],
           
+          if (_timelineLogs.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            Text(
+              'Timeline Update History',
+              style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _timelineLogs.length,
+                separatorBuilder: (context, index) => const Divider(height: 16, color: AppColors.border),
+                itemBuilder: (context, index) {
+                  final log = _timelineLogs[index];
+                  final dateStr = log['created_at'] != null 
+                      ? log['created_at'].toString().split('T')[0] 
+                      : '';
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(log['status'] ?? '').withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              log['status'] ?? 'Updated',
+                              style: TextStyle(
+                                color: _getStatusColor(log['status'] ?? ''),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            dateStr,
+                            style: const TextStyle(fontSize: 10.5, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        log['notes'] ?? '',
+                        style: const TextStyle(fontSize: 12.5, color: AppColors.textPrimary, height: 1.3),
+                      ),
+                      if (log['changed_by_name'] != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'By: ${log['changed_by_name']}',
+                          style: const TextStyle(fontSize: 10, color: AppColors.textSecondary, fontStyle: FontStyle.italic),
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+          
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () => context.pop(),
@@ -689,5 +769,28 @@ class _TimelineViewState extends State<_TimelineView> {
         ],
       ),
     );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'New':
+        return Colors.blueAccent;
+      case 'Viewed':
+        return Colors.orangeAccent;
+      case 'Contacted':
+        return AppColors.secondary;
+      case 'Quote Sent':
+        return Colors.purpleAccent;
+      case 'Accepted':
+        return AppColors.success;
+      case 'Rejected':
+        return Colors.redAccent;
+      case 'Lead Rejected':
+        return Colors.grey;
+      case 'Closed':
+        return AppColors.success;
+      default:
+        return AppColors.textSecondary;
+    }
   }
 }
