@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Check, X, ShieldAlert } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export default function ProductModeration() {
   const [products, setProducts] = useState([]);
@@ -8,7 +9,7 @@ export default function ProductModeration() {
   const fetchPendingProducts = async () => {
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await fetch('http://localhost:5000/api/admin/products/pending', {
+      const response = await fetch(`${API_BASE_URL}/admin/products/pending`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -35,7 +36,7 @@ export default function ProductModeration() {
 
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await fetch(`http://localhost:5000/api/admin/products/${productId}/moderate`, {
+      const response = await fetch(`${API_BASE_URL}/admin/products/${productId}/moderate`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

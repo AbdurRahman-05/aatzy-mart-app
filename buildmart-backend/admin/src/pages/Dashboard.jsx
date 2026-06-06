@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Building2, Package, Inbox, FolderOpen, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -29,7 +30,7 @@ export default function Dashboard() {
     const fetchStats = async () => {
       try {
         const token = localStorage.getItem('admin_token');
-        const response = await fetch('http://localhost:5000/api/admin/overview', {
+        const response = await fetch(`${API_BASE_URL}/admin/overview`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await response.json();

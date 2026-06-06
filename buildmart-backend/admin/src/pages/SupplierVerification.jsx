@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Check, X, Building2, MapPin } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export default function SupplierVerification() {
   const [suppliers, setSuppliers] = useState([]);
@@ -9,7 +10,7 @@ export default function SupplierVerification() {
   const fetchSuppliers = async () => {
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await fetch('http://localhost:5000/api/admin/suppliers', {
+      const response = await fetch(`${API_BASE_URL}/admin/suppliers`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -30,7 +31,7 @@ export default function SupplierVerification() {
   const handleVerify = async (supplierId, approve) => {
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await fetch(`http://localhost:5000/api/admin/suppliers/${supplierId}/verify`, {
+      const response = await fetch(`${API_BASE_URL}/admin/suppliers/${supplierId}/verify`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

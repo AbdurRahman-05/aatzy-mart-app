@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, UserX, Trash2 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -8,7 +9,7 @@ export default function UserManagement() {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await fetch('http://localhost:5000/api/admin/users', {
+      const response = await fetch(`${API_BASE_URL}/admin/users`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -30,7 +31,7 @@ export default function UserManagement() {
     const nextStatus = !currentStatus;
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await fetch(`http://localhost:5000/api/admin/users/${userId}/status`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -53,7 +54,7 @@ export default function UserManagement() {
     
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });

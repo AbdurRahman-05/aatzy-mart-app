@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export default function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState('admin@buildmart.com');
@@ -27,7 +28,7 @@ export default function Login({ onLoginSuccess }) {
         navigate('/');
       } else {
         // Attempt actual API check if backend is running, otherwise alert
-        const response = await fetch('http://localhost:5000/api/auth/login', {
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ loginKey: email, password })

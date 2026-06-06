@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit3, Trash2, FolderPlus } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export default function CategoryManagement() {
   const [categories, setCategories] = useState([
@@ -18,7 +19,7 @@ export default function CategoryManagement() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/buyer/categories');
+      const response = await fetch(`${API_BASE_URL}/buyer/categories`);
       const data = await response.json();
       if (data.success) {
         setCategories(data.categories);
@@ -55,7 +56,7 @@ export default function CategoryManagement() {
     if (isEditing) {
       // Edit
       try {
-        const response = await fetch(`http://localhost:5000/api/admin/categories/${isEditing}`, {
+        const response = await fetch(`${API_BASE_URL}/admin/categories/${isEditing}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -73,7 +74,7 @@ export default function CategoryManagement() {
     } else {
       // Add
       try {
-        const response = await fetch('http://localhost:5000/api/admin/categories', {
+        const response = await fetch(`${API_BASE_URL}/admin/categories`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -103,7 +104,7 @@ export default function CategoryManagement() {
     
     const token = localStorage.getItem('admin_token');
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/categories/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/categories/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
