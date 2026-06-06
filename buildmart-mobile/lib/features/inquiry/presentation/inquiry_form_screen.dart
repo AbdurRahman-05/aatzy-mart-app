@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_service.dart';
+import '../../../core/widgets/custom_image.dart';
 
 class InquiryFormScreen extends StatefulWidget {
   final String supplierId;
@@ -152,7 +153,7 @@ class _InquiryFormScreenState extends State<InquiryFormScreen> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(widget.productImage!, width: 50, height: 50, fit: BoxFit.cover),
+                        child: BuildMartImage(imageUrl: widget.productImage!, width: 50, height: 50, fit: BoxFit.cover),
                       ),
                       const SizedBox(width: 12),
                       Expanded(

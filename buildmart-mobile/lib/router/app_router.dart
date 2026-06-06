@@ -91,7 +91,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/supplier-add-product',
-        builder: (context, state) => const ProductManagementScreen(),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return ProductManagementScreen(editItem: extra['editItem'] as Map<String, dynamic>?);
+        },
       ),
       GoRoute(
         path: '/supplier-profile',

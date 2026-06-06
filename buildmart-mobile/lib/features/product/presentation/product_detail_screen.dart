@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_service.dart';
+import '../../../core/widgets/custom_image.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final String productId;
@@ -123,7 +124,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               child: PageView.builder(
                 itemCount: images.length,
                 itemBuilder: (context, index) {
-                  return Image.network(images[index], fit: BoxFit.cover, width: double.infinity);
+                  return BuildMartImage(imageUrl: images[index], fit: BoxFit.cover, width: double.infinity);
                 },
               ),
             ),

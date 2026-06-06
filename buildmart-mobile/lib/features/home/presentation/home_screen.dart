@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/provider/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_service.dart';
+import '../../../core/widgets/custom_image.dart';
 
 class CategoryItem {
   final String id;
@@ -80,14 +83,14 @@ class HomeProductItem {
   }
 }
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   final PageController _bannerController = PageController();
   int _currentBannerIndex = 0;
   Timer? _bannerTimer;
@@ -204,23 +207,45 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final String buyerName = authState.user?.name ?? 'Guest';
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                'assets/logo.png',
+                width: 32,
+                height: 32,
+                fit: BoxFit.cover,
               ),
-              child: const Text('BM', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
             ),
             const SizedBox(width: 10),
-            Text(
-              'BuildMart',
-              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 20, color: AppColors.primary),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Hi, $buyerName 👋',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                Text(
+                  'BuildMart',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -563,7 +588,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Image.network(img, height: 95, width: 150, fit: BoxFit.cover),
+              child: BuildMartImage(imageUrl: img, height: 95, width: 150, fit: BoxFit.cover),
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),
@@ -626,7 +651,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: Image.network(img, width: 44, height: 44, fit: BoxFit.cover),
+            child: BuildMartImage(imageUrl: img, width: 44, height: 44, fit: BoxFit.cover),
           ),
           const SizedBox(width: 10),
           Expanded(

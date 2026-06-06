@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_service.dart';
+import '../../../core/widgets/custom_image.dart';
 
 class ProductItem {
   final String id;
@@ -203,7 +204,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                 children: [
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(12),
-                                    child: Image.network(item.imageUrl, width: 95, height: 95, fit: BoxFit.cover),
+                                    child: BuildMartImage(imageUrl: item.imageUrl, width: 95, height: 95, fit: BoxFit.cover),
                                   ),
                                   const SizedBox(width: 14),
                                   Expanded(

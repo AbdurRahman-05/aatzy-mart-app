@@ -1,11 +1,15 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_service.dart';
+import '../../../core/widgets/custom_image.dart';
 
 class ProductManagementScreen extends StatefulWidget {
-  const ProductManagementScreen({super.key});
+  final Map<String, dynamic>? editItem;
+  const ProductManagementScreen({super.key, this.editItem});
 
   @override
   State<ProductManagementScreen> createState() => _ProductManagementScreenState();
@@ -60,6 +64,31 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
     },
   ];
 
+  bool get _isEditing => widget.editItem != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isEditing) {
+      final item = widget.editItem!;
+      _nameController.text = item['name'] ?? '';
+      _descController.text = item['description'] ?? '';
+      _isService = item['isService'] == true;
+      _selectedCategory = item['categoryId'] ?? 1;
+      
+      final listImgs = item['images'];
+      if (listImgs is List && listImgs.isNotEmpty) {
+        _imageUrlController.text = listImgs.first.toString();
+      }
+      
+      final specs = item['specifications'];
+      if (specs is Map && specs.isNotEmpty) {
+        _specKeyController.text = specs.keys.first.toString();
+        _specValueController.text = specs.values.first.toString();
+      }
+    }
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -70,13 +99,42 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
     super.dispose();
   }
 
+  Future<void> _pickLocalImage() async {
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+      if (image != null) {
+        final bytes = await image.readAsBytes();
+        final base64String = base64Encode(bytes);
+        final dataUrl = 'data:image/jpeg;base64,$base64String';
+        setState(() {
+          _imageUrlController.text = dataUrl;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick image: $e')),
+        );
+      }
+    }
+  }
+
   void _submitListing() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _submitting = true);
     try {
       final api = ApiService();
-      final path = _isService ? '/supplier/services' : '/supplier/products';
+      
+      final String path;
+      if (_isEditing) {
+        path = _isService 
+            ? '/supplier/services/${widget.editItem!['id']}' 
+            : '/supplier/products/${widget.editItem!['id']}';
+      } else {
+        path = _isService ? '/supplier/services' : '/supplier/products';
+      }
       
       final payload = _isService 
         ? {
@@ -95,8 +153,11 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
             'images': [_imageUrlController.text.trim().isNotEmpty ? _imageUrlController.text.trim() : 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&q=80&w=400']
           };
 
-      final res = await api.post(path, data: payload);
-      if (mounted && res.statusCode == 201) {
+      final res = _isEditing 
+          ? await api.put(path, data: payload)
+          : await api.post(path, data: payload);
+
+      if (mounted && (res.statusCode == 200 || res.statusCode == 201)) {
         _showSuccessDialog();
       }
     } catch (e) {
@@ -115,15 +176,18 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
       builder: (context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.hourglass_empty_rounded, color: AppColors.accent, size: 28),
-              SizedBox(width: 8),
-              Text('Pending Moderation'),
+              Icon(_isEditing ? Icons.check_circle_outline_rounded : Icons.hourglass_empty_rounded, 
+                  color: _isEditing ? AppColors.primary : AppColors.accent, size: 28),
+              const SizedBox(width: 8),
+              Text(_isEditing ? 'Listing Updated' : 'Pending Moderation'),
             ],
           ),
           content: Text(
-            'Your B2B ${_isService ? "service" : "product"} listing has been submitted successfully and is pending review by administrators.',
+            _isEditing
+                ? 'Your B2B ${_isService ? "service" : "product"} listing has been updated successfully.'
+                : 'Your B2B ${_isService ? "service" : "product"} listing has been submitted successfully and is pending review by administrators.',
           ),
           actions: [
             ElevatedButton(
@@ -147,7 +211,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Add B2B Listing'),
+        title: Text(_isEditing ? 'Edit B2B Listing' : 'Add B2B Listing'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -157,25 +221,51 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Listing Type Toggle
-              Row(
-                children: [
-                  Expanded(
-                    child: ChoiceChip(
-                      label: const Center(child: Text('Product Item')),
-                      selected: !_isService,
-                      onSelected: (val) => setState(() => _isService = false),
-                    ),
+              if (_isEditing)
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ChoiceChip(
-                      label: const Center(child: Text('Service Offering')),
-                      selected: _isService,
-                      onSelected: (val) => setState(() => _isService = true),
-                    ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _isService ? Icons.design_services_outlined : Icons.inventory_2_outlined,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        _isService ? 'Editing Service Offering' : 'Editing Product Item',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: ChoiceChip(
+                        label: const Center(child: Text('Product Item')),
+                        selected: !_isService,
+                        onSelected: (val) => setState(() => _isService = false),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ChoiceChip(
+                        label: const Center(child: Text('Service Offering')),
+                        selected: _isService,
+                        onSelected: (val) => setState(() => _isService = true),
+                      ),
+                    ),
+                  ],
+                ),
               const SizedBox(height: 24),
 
               TextFormField(
@@ -250,10 +340,15 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _imageUrlController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Image URL (Optional)',
                   hintText: 'Enter custom image URL or select a preset below',
-                  prefixIcon: Icon(Icons.link_rounded),
+                  prefixIcon: const Icon(Icons.link_rounded),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.photo_library_outlined, color: AppColors.primary),
+                    tooltip: 'Pick image from gallery',
+                    onPressed: _pickLocalImage,
+                  ),
                 ),
                 onChanged: (val) => setState(() {}),
               ),
@@ -324,25 +419,41 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
               
               // Preview Box
               if (_imageUrlController.text.trim().isNotEmpty) ...[
-                Container(
-                  height: 150,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border),
-                    image: DecorationImage(
-                      image: NetworkImage(_imageUrlController.text.trim()),
-                      fit: BoxFit.cover,
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    height: 150,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.border),
                     ),
-                  ),
-                  child: Align(
-                    alignment: Alignment.topRight,
-                    child: IconButton(
-                      icon: const Icon(Icons.cancel, color: Colors.red),
-                      onPressed: () {
-                        setState(() {
-                          _imageUrlController.clear();
-                        });
-                      },
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: BuildMartImage(
+                            imageUrl: _imageUrlController.text.trim(),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Align(
+                          alignment: Alignment.topRight,
+                          child: Container(
+                            margin: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.cancel, color: Colors.white, size: 20),
+                              onPressed: () {
+                                setState(() {
+                                  _imageUrlController.clear();
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -354,7 +465,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
                 onPressed: _submitting ? null : _submitListing,
                 child: _submitting
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Submit for Review'),
+                    : Text(_isEditing ? 'Save Changes' : 'Submit for Review'),
               ),
             ],
           ),

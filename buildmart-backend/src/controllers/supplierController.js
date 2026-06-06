@@ -182,9 +182,17 @@ exports.updateProduct = async (req, res) => {
 
     const updatedProduct = result.rows[0] || db.mockStore.products.find(p => p.id === id);
 
+    if (db.dbMode() === 'memory' && updatedProduct) {
+      if (categoryId) updatedProduct.category_id = categoryId;
+      if (name) updatedProduct.name = name;
+      if (description) updatedProduct.description = description;
+      if (specifications) updatedProduct.specifications = specifications;
+      if (images) updatedProduct.images = images;
+    }
+
     return res.status(200).json({
       success: true,
-      message: 'Product updated and sent for moderation review',
+      message: 'Product updated successfully',
       product: updatedProduct
     });
   } catch (error) {
@@ -244,6 +252,52 @@ exports.addService = async (req, res) => {
     });
   } catch (error) {
     console.error('Add Service Error:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
+exports.updateService = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { categoryId, name, description, images } = req.body;
+    const supplierId = await getSupplierId(req.user.id);
+
+    const checkRes = await db.query('SELECT id FROM services WHERE id = $1 AND supplier_id = $2', [id, supplierId]);
+    if (checkRes.rows.length === 0 && db.dbMode() !== 'memory') {
+      return res.status(403).json({ success: false, message: 'Service not found or not owned by you' });
+    }
+
+    const sql = `
+      UPDATE services
+      SET category_id = COALESCE($1, category_id),
+          name = COALESCE($2, name),
+          description = COALESCE($3, description),
+          images = COALESCE($4, images),
+          status = 'Approved',
+          updated_at = NOW()
+      WHERE id = $5 AND supplier_id = $6
+      RETURNING *
+    `;
+    const result = await db.query(sql, [
+      categoryId, name, description, images, id, supplierId
+    ]);
+
+    const updatedService = result.rows[0] || db.mockStore.services.find(s => s.id === id);
+
+    if (db.dbMode() === 'memory' && updatedService) {
+      if (categoryId) updatedService.category_id = categoryId;
+      if (name) updatedService.name = name;
+      if (description) updatedService.description = description;
+      if (images) updatedService.images = images;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Service updated successfully',
+      service: updatedService
+    });
+  } catch (error) {
+    console.error('Update Service Error:', error);
     return res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 };

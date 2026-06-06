@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/provider/auth_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
@@ -51,7 +53,10 @@ class CatalogItem {
   final String description;
   final String status;
   final String categoryName;
+  final int categoryId;
   final bool isService;
+  final Map<String, dynamic> specifications;
+  final List<String> images;
 
   CatalogItem({
     required this.id,
@@ -59,29 +64,49 @@ class CatalogItem {
     required this.description,
     required this.status,
     required this.categoryName,
+    required this.categoryId,
     required this.isService,
+    required this.specifications,
+    required this.images,
   });
 
   factory CatalogItem.fromJson(Map<String, dynamic> json, bool isService) {
+    Map<String, dynamic> specs = {};
+    if (json['specifications'] != null) {
+      if (json['specifications'] is Map) {
+        specs = Map<String, dynamic>.from(json['specifications']);
+      }
+    }
+
+    List<String> imgs = [];
+    if (json['images'] != null) {
+      if (json['images'] is List) {
+        imgs = List<String>.from(json['images']);
+      }
+    }
+
     return CatalogItem(
       id: json['id'] ?? '',
       name: json['name'] ?? '',
       description: json['description'] ?? '',
       status: json['status'] ?? 'Approved',
       categoryName: json['category_name'] ?? 'General',
+      categoryId: json['category_id'] != null ? int.parse(json['category_id'].toString()) : 1,
       isService: isService,
+      specifications: specs,
+      images: imgs,
     );
   }
 }
 
-class SupplierDashboardScreen extends StatefulWidget {
+class SupplierDashboardScreen extends ConsumerStatefulWidget {
   const SupplierDashboardScreen({super.key});
 
   @override
-  State<SupplierDashboardScreen> createState() => _SupplierDashboardScreenState();
+  ConsumerState<SupplierDashboardScreen> createState() => _SupplierDashboardScreenState();
 }
 
-class _SupplierDashboardScreenState extends State<SupplierDashboardScreen> {
+class _SupplierDashboardScreenState extends ConsumerState<SupplierDashboardScreen> {
   int _currentTab = 0;
   bool _isLoading = false;
   String? _errorMessage;
@@ -440,10 +465,15 @@ class _SupplierDashboardScreenState extends State<SupplierDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
+                      'Hi, ${ref.watch(authProvider).user?.name ?? 'Supplier'} 👋',
+                      style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
                       'Operational Dashboard',
                       style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primary),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     const Text('Manage listings, trade catalogs, and respond to incoming orders.', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                   ],
                 ),
@@ -683,10 +713,35 @@ class _SupplierDashboardScreenState extends State<SupplierDashboardScreen> {
                               ),
                             ),
                             
-                            // Delete Button
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                              onPressed: () => _deleteCatalogItem(item),
+                            // Actions
+                            Column(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, color: AppColors.primary, size: 20),
+                                  onPressed: () {
+                                    context.push('/supplier-add-product', extra: {
+                                      'editItem': {
+                                        'id': item.id,
+                                        'name': item.name,
+                                        'description': item.description,
+                                        'status': item.status,
+                                        'categoryId': item.categoryId,
+                                        'categoryName': item.categoryName,
+                                        'isService': item.isService,
+                                        'specifications': item.specifications,
+                                        'images': item.images,
+                                      }
+                                    }).then((_) {
+                                      _fetchCatalogData();
+                                      _fetchDashboardData();
+                                    });
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                                  onPressed: () => _deleteCatalogItem(item),
+                                ),
+                              ],
                             ),
                           ],
                         ),

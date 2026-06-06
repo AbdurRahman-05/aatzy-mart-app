@@ -9,7 +9,21 @@ export default function Dashboard() {
     leads: 0,
     categories: 0
   });
-  const [loading, setLoading] = useState(true);
+  const [adminName, setAdminName] = useState('Admin');
+
+  useEffect(() => {
+    const user = localStorage.getItem('admin_user');
+    if (user) {
+      try {
+        const parsed = JSON.parse(user);
+        if (parsed && parsed.name) {
+          setAdminName(parsed.name);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -35,7 +49,7 @@ export default function Dashboard() {
     <div className="main-content">
       <div className="header-container">
         <div>
-          <h1 className="page-title">Overview Dashboard</h1>
+          <h1 className="page-title">Welcome, {adminName}</h1>
           <p className="page-subtitle">Real-time metrics and operational control for BuildMart B2B Marketplace.</p>
         </div>
         <div className="badge badge-success">Live Engine</div>

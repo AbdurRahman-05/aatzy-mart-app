@@ -22,6 +22,7 @@ router.delete('/products/:id', supplierController.deleteProduct);
 // Service CRUD
 router.get('/services', supplierController.getServices);
 router.post('/services', supplierController.addService);
+router.put('/services/:id', supplierController.updateService);
 router.delete('/services/:id', supplierController.deleteService);
 
 // Leads Management
