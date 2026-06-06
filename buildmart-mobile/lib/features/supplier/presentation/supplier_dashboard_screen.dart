@@ -17,6 +17,7 @@ class DashboardLeadItem {
   final String buyerName;
   final String buyerPhone;
   final String buyerEmail;
+  final String deliveryStatus;
 
   DashboardLeadItem({
     required this.id,
@@ -29,6 +30,7 @@ class DashboardLeadItem {
     required this.buyerName,
     required this.buyerPhone,
     required this.buyerEmail,
+    required this.deliveryStatus,
   });
 
   factory DashboardLeadItem.fromJson(Map<String, dynamic> json) {
@@ -43,6 +45,7 @@ class DashboardLeadItem {
       buyerName: json['buyer_name'] ?? 'Buyer Client',
       buyerPhone: json['buyer_phone'] ?? '',
       buyerEmail: json['buyer_email'] ?? '',
+      deliveryStatus: json['delivery_status'] ?? 'Pending',
     );
   }
 }
@@ -256,106 +259,156 @@ class _SupplierDashboardScreenState extends ConsumerState<SupplierDashboardScree
     final priceController = TextEditingController(text: lead.quotedPrice?.toString() ?? '');
     final notesController = TextEditingController();
     String selectedStatus = lead.status;
+    String selectedDeliveryStatus = lead.deliveryStatus;
+    double selectedGstPercent = lead.gstPercent;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          top: 20,
-          left: 20,
-          right: 20,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Quote / Update Lead',
-                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.primary),
-              ),
-              const SizedBox(height: 6),
-              Text('Inquiry for: ${lead.productName}', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-              const Divider(height: 24),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final isClosed = selectedStatus == 'Closed';
 
-              // Status Dropdown
-              DropdownButtonFormField<String>(
-                initialValue: selectedStatus,
-                decoration: const InputDecoration(labelText: 'Lead Status'),
-                items: ['New', 'Viewed', 'Contacted', 'Closed'].map((status) {
-                  return DropdownMenuItem(value: status, child: Text(status));
-                }).toList(),
-                onChanged: (val) {
-                  if (val != null) selectedStatus = val;
-                },
-              ),
-              const SizedBox(height: 16),
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+              top: 20,
+              left: 20,
+              right: 20,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Quote / Update Lead',
+                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.primary),
+                  ),
+                  const SizedBox(height: 6),
+                  Text('Inquiry for: ${lead.productName}', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                  const Divider(height: 24),
 
-              // Quoted Price
-              TextFormField(
-                controller: priceController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Quoted Price per Unit (₹)',
-                  hintText: 'Enter your quote amount...',
-                ),
-              ),
-              const SizedBox(height: 16),
+                  // Status Dropdown
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedStatus,
+                    decoration: const InputDecoration(labelText: 'Lead Status'),
+                    items: ['New', 'Viewed', 'Contacted', 'Closed'].map((status) {
+                      return DropdownMenuItem(value: status, child: Text(status));
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setDialogState(() {
+                          selectedStatus = val;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
 
-              // Action Notes
-              TextFormField(
-                controller: notesController,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Follow-up Note',
-                  hintText: 'e.g. Discussed bulk discount and shipping timeline...',
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              ElevatedButton(
-                onPressed: () async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  Navigator.pop(context);
-                  setState(() => _isLoading = true);
-                  try {
-                    final api = ApiService();
-                    final price = double.tryParse(priceController.text.trim());
-                    
-                    final res = await api.put(
-                      '/supplier/leads/${lead.id}/status',
-                      data: {
-                        'status': selectedStatus,
-                        'quotedPrice': price,
-                        'notes': notesController.text.trim().isEmpty ? null : notesController.text.trim(),
+                  if (isClosed) ...[
+                    // Delivery Status Dropdown
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedDeliveryStatus,
+                      decoration: const InputDecoration(labelText: 'Delivery Stage / Shipping Status'),
+                      items: ['Pending', 'Packed', 'Dispatched', 'Delivered'].map((stage) {
+                        return DropdownMenuItem(value: stage, child: Text(stage));
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDialogState(() {
+                            selectedDeliveryStatus = val;
+                          });
+                        }
                       },
-                    );
+                    ),
+                    const SizedBox(height: 16),
 
-                    if (res.statusCode == 200) {
-                      messenger.showSnackBar(
-                        const SnackBar(content: Text('Lead updated successfully!')),
-                      );
-                      _fetchDashboardData();
-                    }
-                  } catch (e) {
-                    messenger.showSnackBar(
-                      const SnackBar(content: Text('Failed to update lead status.')),
-                    );
-                  } finally {
-                    if (mounted) {
-                      setState(() => _isLoading = false);
-                    }
-                  }
-                },
-                child: const Text('Save Changes'),
+                    // GST Percent Dropdown
+                    DropdownButtonFormField<double>(
+                      initialValue: selectedGstPercent,
+                      decoration: const InputDecoration(labelText: 'GST Percent (%)'),
+                      items: [5.0, 12.0, 18.0, 28.0].map((gst) {
+                        return DropdownMenuItem(value: gst, child: Text('${gst.toStringAsFixed(0)}%'));
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDialogState(() {
+                            selectedGstPercent = val;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Quoted Price
+                  TextFormField(
+                    controller: priceController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Quoted Price per Unit (₹)',
+                      hintText: 'Enter your quote amount...',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Action Notes
+                  TextFormField(
+                    controller: notesController,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Follow-up Note / Shipping Details',
+                      hintText: 'e.g. Dispatched via Express Cargo, tracking #1234...',
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  ElevatedButton(
+                    onPressed: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      Navigator.pop(context);
+                      setState(() => _isLoading = true);
+                      try {
+                        final api = ApiService();
+                        final price = double.tryParse(priceController.text.trim());
+                        
+                        final res = await api.put(
+                          '/supplier/leads/${lead.id}/status',
+                          data: {
+                            'status': selectedStatus,
+                            'quotedPrice': price,
+                            'deliveryStatus': selectedDeliveryStatus,
+                            'gstPercent': selectedGstPercent,
+                            'notes': notesController.text.trim().isEmpty ? null : notesController.text.trim(),
+                          },
+                        );
+
+                        if (res.statusCode == 200) {
+                          messenger.showSnackBar(
+                            const SnackBar(content: Text('Lead & Shipping updated successfully!')),
+                          );
+                          _fetchDashboardData();
+                        }
+                      } catch (e) {
+                        messenger.showSnackBar(
+                          const SnackBar(content: Text('Failed to update lead status.')),
+                        );
+                      } finally {
+                        if (mounted) {
+                          setState(() => _isLoading = false);
+                        }
+                      }
+                    },
+                    child: const Text('Save Changes'),
+                  ),
+                  const SizedBox(height: 20),
+                ],
               ),
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
+            ),
+          );
+        }
       ),
     );
   }
