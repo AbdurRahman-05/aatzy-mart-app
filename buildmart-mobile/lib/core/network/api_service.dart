@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
@@ -6,13 +5,20 @@ class ApiService {
   late final Dio _dio;
   String? _token;
 
+  // Toggle this flag to switch between local development and the deployed production backend.
+  // Set to true to connect any device over the internet to the deployed server.
+  static const bool useDeployedBackend = true;
+
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
 
   ApiService._internal() {
-    final String baseUrlAddress = !kIsWeb && Platform.isAndroid 
-        ? 'http://10.0.2.2:5000/api' 
-        : 'http://localhost:5000/api';
+    const String deployedUrl = 'https://aatzy-mart-app.vercel.app/api';
+    const String localUrl = kIsWeb 
+        ? 'http://localhost:5000/api' 
+        : 'http://10.118.69.2:5000/api';
+
+    const String baseUrlAddress = useDeployedBackend ? deployedUrl : localUrl;
 
     _dio = Dio(
       BaseOptions(

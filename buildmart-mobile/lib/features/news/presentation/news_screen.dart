@@ -240,7 +240,7 @@ class _NewsScreenState extends State<NewsScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: AppColors.secondary.withOpacity(0.12),
+                                    color: AppColors.secondary.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(

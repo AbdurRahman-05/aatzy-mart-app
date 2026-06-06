@@ -107,27 +107,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     }
   }
 
-  List<LeadItem> _getFallbackLeads() {
-    return [
-      LeadItem(
-        id: 'a9a9a9a9-a9a9-a9a9-a9a9-a9a9a9a9a9a9',
-        date: '2026-06-05',
-        buyerName: 'Abdur Rahman (Contractors Ltd)',
-        buyerPhone: '+91 98765 43210',
-        buyerEmail: 'abdur@contractors.in',
-        requirementTitle: 'Requirement for UltraTech Premium Cement OPC 53 Grade',
-        requirementDesc: 'Need 500 Bags delivered to Noida extension project site. Quote final commercial rates including tax.',
-        quantity: '500 Bags',
-        quantityVal: 500.0,
-        unit: 'Bags',
-        location: 'Noida Extension, UP',
-        status: 'New',
-        quotedPrice: null,
-        deliveryStatus: 'Pending',
-        gstPercent: 18.0,
-      ),
-    ];
-  }
+
 
   Future<void> _updateLeadStatus(
     LeadItem lead,
@@ -156,9 +136,11 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           if (deliveryStatus != null) lead.deliveryStatus = deliveryStatus;
           if (gstPercent != null) lead.gstPercent = gstPercent;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lead status updated to $newStatus successfully!')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Lead status updated to $newStatus successfully!')),
+          );
+        }
       }
     } catch (e) {
       setState(() {
@@ -167,9 +149,11 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         if (deliveryStatus != null) lead.deliveryStatus = deliveryStatus;
         if (gstPercent != null) lead.gstPercent = gstPercent;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Offline simulation: status & quotes updated locally.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Offline simulation: status & quotes updated locally.')),
+        );
+      }
     } finally {
       setState(() => _isLoading = false);
     }
@@ -213,7 +197,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String>(
-                      value: selectedStatus,
+                      initialValue: selectedStatus,
                       decoration: const InputDecoration(labelText: 'Select Status'),
                       items: ['New', 'Viewed', 'Contacted', 'Closed'].map((s) {
                         return DropdownMenuItem(value: s, child: Text(s));
@@ -240,7 +224,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: selectedDeliveryStatus,
+                        initialValue: selectedDeliveryStatus,
                         decoration: const InputDecoration(labelText: 'Delivery Stage'),
                         items: ['Pending', 'Packed', 'Dispatched', 'Delivered'].map((stage) {
                           return DropdownMenuItem(value: stage, child: Text(stage));
@@ -255,7 +239,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<double>(
-                        value: selectedGstPercent,
+                        initialValue: selectedGstPercent,
                         decoration: const InputDecoration(labelText: 'GST Percent (%)'),
                         items: [5.0, 12.0, 18.0, 28.0].map((gst) {
                           return DropdownMenuItem(value: gst, child: Text('${gst.toStringAsFixed(0)}%'));
@@ -363,9 +347,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: _getStatusColor(lead.status).withOpacity(0.12),
+                                            color: _getStatusColor(lead.status).withValues(alpha: 0.12),
                                             borderRadius: BorderRadius.circular(50),
-                                            border: Border.all(color: _getStatusColor(lead.status).withOpacity(0.3)),
+                                            border: Border.all(color: _getStatusColor(lead.status).withValues(alpha: 0.3)),
                                           ),
                                           child: Text(
                                             lead.status == 'Closed' ? 'Deal Closed' : lead.status,

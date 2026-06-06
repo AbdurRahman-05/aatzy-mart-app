@@ -82,16 +82,57 @@ exports.toggleUserStatus = async (req, res) => {
 exports.deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
-    await db.query('UPDATE users SET deleted_at = NOW() WHERE id = $1', [id]);
 
-    if (db.dbMode() === 'memory') {
-      const idx = db.mockStore.users.findIndex(item => item.id === id);
-      if (idx !== -1) {
-        db.mockStore.users.splice(idx, 1);
+    if (db.dbMode() === 'postgres') {
+      // Run cleanup and hard delete inside a transaction
+      await db.query('BEGIN');
+      try {
+        await db.query('DELETE FROM activity_logs WHERE user_id = $1', [id]);
+        await db.query('UPDATE inquiry_status_logs SET changed_by_user_id = NULL WHERE changed_by_user_id = $1', [id]);
+        await db.query('UPDATE suppliers SET approved_by = NULL WHERE approved_by = $1', [id]);
+        await db.query('DELETE FROM users WHERE id = $1', [id]);
+        await db.query('COMMIT');
+      } catch (txnError) {
+        await db.query('ROLLBACK');
+        throw txnError;
       }
     }
 
-    return res.status(200).json({ success: true, message: 'User deleted successfully' });
+    if (db.dbMode() === 'memory') {
+      // 1. Delete user from mockStore
+      const userIdx = db.mockStore.users.findIndex(item => item.id === id);
+      if (userIdx !== -1) {
+        db.mockStore.users.splice(userIdx, 1);
+      }
+      // 2. Cascade delete from buyers or suppliers
+      const buyerIdx = db.mockStore.buyers.findIndex(item => item.user_id === id);
+      if (buyerIdx !== -1) {
+        db.mockStore.buyers.splice(buyerIdx, 1);
+      }
+      const supplierIdx = db.mockStore.suppliers.findIndex(item => item.user_id === id);
+      if (supplierIdx !== -1) {
+        db.mockStore.suppliers.splice(supplierIdx, 1);
+      }
+      // 3. Delete notifications
+      db.mockStore.notifications = db.mockStore.notifications.filter(n => n.user_id !== id);
+      // 4. Delete favorites
+      db.mockStore.favorites = db.mockStore.favorites.filter(f => f.user_id !== id);
+      // 5. Clean up inquiry_status_logs changed by user
+      db.mockStore.inquiry_status_logs.forEach(log => {
+        if (log.changed_by_user_id === id) {
+          log.changed_by_user_id = null;
+        }
+      });
+      // 6. Clean up supplier approved_by
+      db.mockStore.suppliers.forEach(sup => {
+        if (sup.approved_by === id) {
+          sup.approved_by = null;
+          sup.approved_at = null;
+        }
+      });
+    }
+
+    return res.status(200).json({ success: true, message: 'User deleted successfully from database' });
   } catch (error) {
     console.error('Delete User Error:', error);
     return res.status(500).json({ success: false, message: 'Internal Server Error' });
@@ -320,13 +361,35 @@ exports.updateCategory = async (req, res) => {
 exports.deleteCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    await db.query('DELETE FROM categories WHERE id = $1', [id]);
+
+    if (db.dbMode() === 'postgres') {
+      await db.query('BEGIN');
+      try {
+        await db.query('UPDATE products SET category_id = NULL WHERE category_id = $1', [id]);
+        await db.query('UPDATE services SET category_id = NULL WHERE category_id = $1', [id]);
+        await db.query('UPDATE categories SET parent_id = NULL WHERE parent_id = $1', [id]);
+        await db.query('DELETE FROM categories WHERE id = $1', [id]);
+        await db.query('COMMIT');
+      } catch (txnError) {
+        await db.query('ROLLBACK');
+        throw txnError;
+      }
+    }
 
     if (db.dbMode() === 'memory') {
       const idx = db.mockStore.categories.findIndex(c => c.id == id);
       if (idx !== -1) {
         db.mockStore.categories.splice(idx, 1);
       }
+      db.mockStore.products.forEach(p => {
+        if (p.category_id == id) p.category_id = null;
+      });
+      db.mockStore.services.forEach(s => {
+        if (s.category_id == id) s.category_id = null;
+      });
+      db.mockStore.categories.forEach(c => {
+        if (c.parent_id == id) c.parent_id = null;
+      });
     }
 
     return res.status(200).json({ success: true, message: 'Category deleted successfully' });

@@ -39,9 +39,10 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
         context.go('/');
       }
     } else if (mounted) {
+      final error = ref.read(authProvider).errorMessage;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Invalid Verification OTP Code'),
+        SnackBar(
+          content: Text(error ?? 'Invalid Verification OTP Code'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -65,7 +66,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.mark_email_read_outlined, size: 70, color: AppColors.primary),
+            const Icon(Icons.mark_email_read_outlined, size: 70, color: AppColors.primary),
             const SizedBox(height: 24),
             Text(
               'Enter OTP Code',

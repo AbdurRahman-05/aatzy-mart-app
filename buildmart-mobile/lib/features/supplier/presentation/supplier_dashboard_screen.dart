@@ -176,7 +176,7 @@ class _SupplierDashboardScreenState extends State<SupplierDashboardScreen> {
         });
       }
     } catch (e) {
-      print('Error loading catalog lists: $e');
+      debugPrint('Error loading catalog lists: $e');
     }
   }
 
@@ -205,18 +205,24 @@ class _SupplierDashboardScreenState extends State<SupplierDashboardScreen> {
         final res = await api.delete(path);
         
         if (res.statusCode == 200) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('"${item.name}" removed successfully.')),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('"${item.name}" removed successfully.')),
+            );
+          }
           _fetchCatalogData();
           _fetchDashboardData();
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to delete listing.')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to delete listing.')),
+          );
+        }
       } finally {
-        setState(() => _isLoading = false);
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     }
   }
@@ -252,7 +258,7 @@ class _SupplierDashboardScreenState extends State<SupplierDashboardScreen> {
 
               // Status Dropdown
               DropdownButtonFormField<String>(
-                value: selectedStatus,
+                initialValue: selectedStatus,
                 decoration: const InputDecoration(labelText: 'Lead Status'),
                 items: ['New', 'Viewed', 'Contacted', 'Closed'].map((status) {
                   return DropdownMenuItem(value: status, child: Text(status));
@@ -287,6 +293,7 @@ class _SupplierDashboardScreenState extends State<SupplierDashboardScreen> {
 
               ElevatedButton(
                 onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
                   Navigator.pop(context);
                   setState(() => _isLoading = true);
                   try {
@@ -303,17 +310,19 @@ class _SupplierDashboardScreenState extends State<SupplierDashboardScreen> {
                     );
 
                     if (res.statusCode == 200) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      messenger.showSnackBar(
                         const SnackBar(content: Text('Lead updated successfully!')),
                       );
                       _fetchDashboardData();
                     }
                   } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       const SnackBar(content: Text('Failed to update lead status.')),
                     );
                   } finally {
-                    setState(() => _isLoading = false);
+                    if (mounted) {
+                      setState(() => _isLoading = false);
+                    }
                   }
                 },
                 child: const Text('Save Changes'),
@@ -592,7 +601,7 @@ class _SupplierDashboardScreenState extends State<SupplierDashboardScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.inventory_2_outlined, size: 48, color: AppColors.textSecondary.withOpacity(0.5)),
+                      Icon(Icons.inventory_2_outlined, size: 48, color: AppColors.textSecondary.withValues(alpha: 0.5)),
                       const SizedBox(height: 12),
                       const Text('No listings found in your catalog.', style: TextStyle(color: AppColors.textSecondary)),
                       const SizedBox(height: 16),
@@ -621,7 +630,7 @@ class _SupplierDashboardScreenState extends State<SupplierDashboardScreen> {
                               width: 50,
                               height: 50,
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.08),
+                                color: AppColors.primary.withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Icon(
@@ -658,7 +667,7 @@ class _SupplierDashboardScreenState extends State<SupplierDashboardScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                     decoration: BoxDecoration(
-                                      color: _getStatusColor(item.status).withOpacity(0.12),
+                                      color: _getStatusColor(item.status).withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
@@ -727,7 +736,7 @@ class _SupplierDashboardScreenState extends State<SupplierDashboardScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: _getLeadStatusColor(lead.status).withOpacity(0.12),
+                              color: _getLeadStatusColor(lead.status).withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -845,7 +854,7 @@ class _SupplierDashboardScreenState extends State<SupplierDashboardScreen> {
                       ),
                       Container(
                         padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: AppColors.success.withOpacity(0.12), shape: BoxShape.circle),
+                        decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.12), shape: BoxShape.circle),
                         child: const Icon(Icons.trending_up, color: AppColors.success, size: 24),
                       ),
                     ],
@@ -893,7 +902,7 @@ class _SupplierDashboardScreenState extends State<SupplierDashboardScreen> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<double>(
-                    value: _calcGstPercent,
+                    initialValue: _calcGstPercent,
                     decoration: const InputDecoration(labelText: 'Applicable GST Slab (%)'),
                     items: [5.0, 12.0, 18.0, 28.0].map((gst) {
                       return DropdownMenuItem(value: gst, child: Text('${gst.toStringAsFixed(0)}% GST'));
@@ -1039,7 +1048,7 @@ class _SupplierDashboardScreenState extends State<SupplierDashboardScreen> {
           border: Border.all(color: AppColors.border),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -1050,7 +1059,7 @@ class _SupplierDashboardScreenState extends State<SupplierDashboardScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 24),

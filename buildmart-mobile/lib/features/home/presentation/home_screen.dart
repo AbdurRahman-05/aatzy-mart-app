@@ -248,7 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 15,
                       offset: const Offset(0, 4),
                     ),
@@ -307,7 +307,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           begin: Alignment.bottomCenter,
                           end: Alignment.topCenter,
                           colors: [
-                            Colors.black.withOpacity(0.6),
+                            Colors.black.withValues(alpha: 0.6),
                             Colors.transparent,
                           ],
                         ),
@@ -325,7 +325,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           const SizedBox(height: 4),
                           Text(
                             'Get bulk pricing inquiries from verified suppliers',
-                            style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+                            style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12),
                           ),
                         ],
                       ),
@@ -367,7 +367,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4)),
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4)),
                     ],
                   ),
                   child: Row(
@@ -385,7 +385,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             const SizedBox(height: 2),
                             Text(
                               'Track daily steel, cement fluctuations & policy news.',
-                              style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 11),
+                              style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 11),
                             ),
                           ],
                         ),
@@ -436,7 +436,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       borderRadius: BorderRadius.circular(16),
                                       border: Border.all(color: AppColors.border, width: 1),
                                       boxShadow: [
-                                        BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 3)),
+                                        BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 3)),
                                       ],
                                     ),
                                     child: Icon(cat.icon, color: AppColors.primary, size: 24),
@@ -555,7 +555,7 @@ class _HomeScreenState extends State<HomeScreen> {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.border, width: 1),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
           ],
         ),
         child: Column(

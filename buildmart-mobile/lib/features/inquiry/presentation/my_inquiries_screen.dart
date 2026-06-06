@@ -201,9 +201,9 @@ class _MyInquiriesScreenState extends State<MyInquiriesScreen> {
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                             decoration: BoxDecoration(
-                                              color: _getStatusColor(inq.status).withOpacity(0.12),
+                                              color: _getStatusColor(inq.status).withValues(alpha: 0.12),
                                               borderRadius: BorderRadius.circular(50),
-                                              border: Border.all(color: _getStatusColor(inq.status).withOpacity(0.3)),
+                                              border: Border.all(color: _getStatusColor(inq.status).withValues(alpha: 0.3)),
                                             ),
                                             child: Text(
                                               inq.status == 'Closed' ? 'Deal Finalized' : inq.status,
@@ -233,9 +233,9 @@ class _MyInquiriesScreenState extends State<MyInquiriesScreen> {
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                           decoration: BoxDecoration(
-                                            color: AppColors.primary.withOpacity(0.06),
+                                            color: AppColors.primary.withValues(alpha: 0.06),
                                             borderRadius: BorderRadius.circular(8),
-                                            border: Border.all(color: AppColors.primary.withOpacity(0.12)),
+                                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.12)),
                                           ),
                                           child: Row(
                                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -296,7 +296,6 @@ class _TimelineView extends StatefulWidget {
 
 class _TimelineViewState extends State<_TimelineView> {
   bool _loading = true;
-  List<dynamic> _timelineLogs = [];
 
   @override
   void initState() {
@@ -307,18 +306,13 @@ class _TimelineViewState extends State<_TimelineView> {
   Future<void> _fetchTimeline() async {
     try {
       final api = ApiService();
-      final res = await api.get('/buyer/inquiries/${widget.inquiryId}');
-      if (res.statusCode == 200 && res.data != null) {
-        setState(() {
-          _timelineLogs = res.data['timeline'] ?? [];
-        });
-      }
+      await api.get('/buyer/inquiries/${widget.inquiryId}');
     } catch (e) {
-      _timelineLogs = [
-        {'status': 'New', 'notes': 'Inquiry submitted by buyer.', 'created_at': DateTime.now().toIso8601String()}
-      ];
+      // Offline / network failure fallback
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 

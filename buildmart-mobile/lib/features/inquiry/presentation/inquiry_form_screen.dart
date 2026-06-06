@@ -208,7 +208,7 @@ class _InquiryFormScreenState extends State<InquiryFormScreen> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _selectedUnit,
+                      initialValue: _selectedUnit,
                       items: _units.map((unit) {
                         return DropdownMenuItem(value: unit, child: Text(unit));
                       }).toList(),
@@ -241,12 +241,12 @@ class _InquiryFormScreenState extends State<InquiryFormScreen> {
                   children: [
                     const Icon(Icons.image_outlined, color: AppColors.primary),
                     const SizedBox(width: 12),
-                    Expanded(
+                    const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Attach Images (Optional)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary)),
-                          const SizedBox(height: 2),
+                          Text('Attach Images (Optional)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary)),
+                          SizedBox(height: 2),
                           Text('Add blueprints or material photos', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                         ],
                       ),

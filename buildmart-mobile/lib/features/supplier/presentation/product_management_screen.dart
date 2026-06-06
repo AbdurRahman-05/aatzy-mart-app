@@ -15,6 +15,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descController = TextEditingController();
+  final _imageUrlController = TextEditingController();
   
   // Specifications fields
   final _specKeyController = TextEditingController(text: 'Min Order Qty');
@@ -32,6 +33,43 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
     {'id': 5, 'name': 'Machinery'},
   ];
 
+  final List<Map<String, String>> _presets = [
+    {
+      'label': 'Cement Bag',
+      'url': 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&q=80&w=400'
+    },
+    {
+      'label': 'Steel Rebar',
+      'url': 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&q=80&w=400'
+    },
+    {
+      'label': 'Bricks',
+      'url': 'https://images.unsplash.com/photo-1590069261209-f8e9b8642343?auto=format&fit=crop&q=80&w=400'
+    },
+    {
+      'label': 'Pipes',
+      'url': 'https://images.unsplash.com/photo-1581094288338-2314dddb7ecc?auto=format&fit=crop&q=80&w=400'
+    },
+    {
+      'label': 'Wires',
+      'url': 'https://images.unsplash.com/photo-1558346490-a72e53ae2d4f?auto=format&fit=crop&q=80&w=400'
+    },
+    {
+      'label': 'Interior/Timber',
+      'url': 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?auto=format&fit=crop&q=80&w=400'
+    },
+  ];
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descController.dispose();
+    _imageUrlController.dispose();
+    _specKeyController.dispose();
+    _specValueController.dispose();
+    super.dispose();
+  }
+
   void _submitListing() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -45,7 +83,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
             'categoryId': _selectedCategory,
             'name': _nameController.text.trim(),
             'description': _descController.text.trim(),
-            'images': ['https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&q=80&w=400']
+            'images': [_imageUrlController.text.trim().isNotEmpty ? _imageUrlController.text.trim() : 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&q=80&w=400']
           }
         : {
             'categoryId': _selectedCategory,
@@ -54,7 +92,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
             'specifications': {
               _specKeyController.text.trim(): _specValueController.text.trim()
             },
-            'images': ['https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&q=80&w=400']
+            'images': [_imageUrlController.text.trim().isNotEmpty ? _imageUrlController.text.trim() : 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&q=80&w=400']
           };
 
       final res = await api.post(path, data: payload);
@@ -151,7 +189,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
               const SizedBox(height: 16),
 
               DropdownButtonFormField<int>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 items: _categories.map((cat) {
                   return DropdownMenuItem<int>(
                     value: cat['id'],
@@ -204,40 +242,119 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
                 const SizedBox(height: 24),
               ],
 
-              // Mock Image upload picker box
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
+              // Image URL & Selection Section
+              Text(
+                'Product / Service Image',
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _imageUrlController,
+                decoration: const InputDecoration(
+                  labelText: 'Image URL (Optional)',
+                  hintText: 'Enter custom image URL or select a preset below',
+                  prefixIcon: Icon(Icons.link_rounded),
                 ),
-                child: Column(
-                  children: [
-                    const Icon(Icons.cloud_upload_outlined, size: 40, color: AppColors.textSecondary),
-                    const SizedBox(height: 8),
-                    const Text('Upload Product Images', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary)),
-                    const SizedBox(height: 4),
-                    Text('PNG, JPG formats accepted', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                    const SizedBox(height: 12),
-                    OutlinedButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Mock Image Picker opened.')),
-                        );
+                onChanged: (val) => setState(() {}),
+              ),
+              const SizedBox(height: 12),
+              
+              // Preset suggestions
+              Text(
+                'Or choose a preset preview:',
+                style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 70,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _presets.length,
+                  itemBuilder: (context, index) {
+                    final preset = _presets[index];
+                    final isSelected = _imageUrlController.text == preset['url'];
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _imageUrlController.text = preset['url']!;
+                        });
                       },
-                      child: const Text('Choose File'),
-                    ),
-                  ],
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        width: 70,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isSelected ? AppColors.primary : AppColors.border,
+                            width: isSelected ? 2 : 1,
+                          ),
+                          image: DecorationImage(
+                            image: NetworkImage(preset['url']!),
+                            fit: BoxFit.cover,
+                            colorFilter: isSelected
+                                ? null
+                                : ColorFilter.mode(Colors.black.withValues(alpha: 0.2), BlendMode.darken),
+                          ),
+                        ),
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              borderRadius: const BorderRadius.only(
+                                bottomLeft: Radius.circular(8),
+                                bottomRight: Radius.circular(8),
+                              ),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Text(
+                              preset['label']!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
+              const SizedBox(height: 16),
+              
+              // Preview Box
+              if (_imageUrlController.text.trim().isNotEmpty) ...[
+                Container(
+                  height: 150,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                    image: DecorationImage(
+                      image: NetworkImage(_imageUrlController.text.trim()),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  child: Align(
+                    alignment: Alignment.topRight,
+                    child: IconButton(
+                      icon: const Icon(Icons.cancel, color: Colors.red),
+                      onPressed: () {
+                        setState(() {
+                          _imageUrlController.clear();
+                        });
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               const SizedBox(height: 32),
 
               ElevatedButton(
                 onPressed: _submitting ? null : _submitListing,
                 child: _submitting
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : Text('Submit for Review'),
+                    : const Text('Submit for Review'),
               ),
             ],
           ),

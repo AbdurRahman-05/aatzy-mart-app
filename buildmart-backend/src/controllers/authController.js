@@ -79,18 +79,19 @@ exports.verifyOtp = async (req, res) => {
     const { name, email, password, roleId, companyName, location, gstNumber, materialsProviding } = cached.payload;
     const passwordHash = await bcrypt.hash(password, 10);
     const userId = require('crypto').randomUUID();
+    const rId = Number(roleId);
 
     // Create User
     const userRes = await db.query(
       'INSERT INTO users (id, name, email, phone, password_hash, role_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, phone, role_id',
-      [userId, name, email || null, phone, passwordHash, roleId]
+      [userId, name, email || null, phone, passwordHash, rId]
     );
 
     // Auto-create Buyer or Supplier profile skeleton
-    if (roleId === 2) {
+    if (rId === 2) {
       // Buyer
       await db.query('INSERT INTO buyers (user_id, location) VALUES ($1, $2)', [userId, 'India']);
-    } else if (roleId === 3) {
+    } else if (rId === 3) {
       // Supplier (Requires Admin Approval)
       await db.query(
         'INSERT INTO suppliers (user_id, company_name, business_type, location, gst_number, materials_providing, is_approved) VALUES ($1, $2, $3, $4, $5, $6, $7)',
@@ -112,8 +113,8 @@ exports.verifyOtp = async (req, res) => {
         name,
         email,
         phone,
-        roleId,
-        roleName: roleId === 3 ? 'supplier' : (roleId === 1 ? 'admin' : 'buyer')
+        roleId: rId,
+        roleName: rId === 3 ? 'supplier' : (rId === 1 ? 'admin' : 'buyer')
       }
     });
   } catch (error) {
@@ -219,15 +220,16 @@ exports.googleAuth = async (req, res) => {
       const randomPass = await bcrypt.hash(Math.random().toString(36), 10);
       const userId = require('crypto').randomUUID();
 
+      const rId = Number(roleId || 2);
       const insertRes = await db.query(
         'INSERT INTO users (id, name, email, phone, password_hash, role_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-        [userId, name, email, randomPhone, randomPass, roleId || 2]
+        [userId, name, email, randomPhone, randomPass, rId]
       );
       
       user = insertRes.rows[0];
-      user.role_name = roleId === 3 ? 'supplier' : 'buyer';
+      user.role_name = rId === 3 ? 'supplier' : 'buyer';
 
-      if (roleId === 3) {
+      if (rId === 3) {
         await db.query(
           'INSERT INTO suppliers (user_id, company_name, business_type, location, is_approved) VALUES ($1, $2, $3, $4, $5)',
           [userId, `${name}'s Store`, 'Retailer', 'India', false]

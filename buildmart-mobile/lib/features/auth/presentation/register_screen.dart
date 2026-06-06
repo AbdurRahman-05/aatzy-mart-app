@@ -92,6 +92,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
 
     if (mounted) {
+      if (otp == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ref.read(authProvider).errorMessage ?? 'Registration failed'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Mock OTP Code Sent: $otp'),
@@ -153,7 +163,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: _selectedRoleId == 2 ? AppColors.primary.withOpacity(0.08) : Colors.white,
+                          color: _selectedRoleId == 2 ? AppColors.primary.withValues(alpha: 0.08) : Colors.white,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: _selectedRoleId == 2 ? AppColors.primary : AppColors.border,
@@ -177,7 +187,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: _selectedRoleId == 3 ? AppColors.primary.withOpacity(0.08) : Colors.white,
+                          color: _selectedRoleId == 3 ? AppColors.primary.withValues(alpha: 0.08) : Colors.white,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: _selectedRoleId == 3 ? AppColors.primary : AppColors.border,
@@ -297,7 +307,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     return ChoiceChip(
                       label: Text(material),
                       selected: isSelected,
-                      selectedColor: AppColors.primary.withOpacity(0.15),
+                      selectedColor: AppColors.primary.withValues(alpha: 0.15),
                       labelStyle: TextStyle(
                         color: isSelected ? AppColors.primary : AppColors.textPrimary,
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -364,7 +374,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           right: 8,
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            color: Colors.black.withOpacity(0.6),
+                            color: Colors.black.withValues(alpha: 0.6),
                             child: const Text(
                               'Interactive Map',
                               style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
@@ -405,7 +415,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Already have an account? ', style: TextStyle(color: AppColors.textSecondary)),
+                  const Text('Already have an account? ', style: TextStyle(color: AppColors.textSecondary)),
                   TextButton(
                     onPressed: () => context.pop(),
                     child: const Text('Sign In', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),

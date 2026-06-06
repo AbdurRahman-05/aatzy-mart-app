@@ -23,7 +23,7 @@ class AppTheme {
         primary: AppColors.primary,
         secondary: AppColors.secondary,
         tertiary: AppColors.accent,
-        background: AppColors.background,
+        surface: AppColors.background,
         onPrimary: Colors.white,
       ),
       textTheme: GoogleFonts.plusJakartaSansTextTheme().copyWith(
@@ -60,7 +60,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: AppColors.cardBg,
         elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.04),
+        shadowColor: Colors.black.withValues(alpha: 0.04),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: AppColors.border, width: 1),

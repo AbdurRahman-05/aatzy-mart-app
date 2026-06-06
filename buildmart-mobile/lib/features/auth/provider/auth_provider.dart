@@ -62,7 +62,6 @@ class AuthState {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final ApiService _apiService = ApiService();
-  int? _registeredRoleId;
 
   AuthNotifier() : super(AuthState());
 
@@ -84,10 +83,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
     } catch (e) {
       String errorMessage = 'Invalid credentials or connection error';
-      if (e is DioException && e.response != null && e.response?.data != null) {
-        final data = e.response?.data;
-        if (data is Map && data['message'] != null) {
-          errorMessage = data['message'].toString();
+      if (e is DioException) {
+        if (e.response != null && e.response?.data != null) {
+          final data = e.response?.data;
+          if (data is Map && data['message'] != null) {
+            errorMessage = data['message'].toString();
+          }
+        } else {
+          errorMessage = 'Unable to connect to the server. Please verify the backend is running and reachable.';
         }
       }
       state = state.copyWith(isLoading: false, errorMessage: errorMessage);
@@ -106,7 +109,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? gstNumber,
     String? materialsProviding,
   }) async {
-    _registeredRoleId = roleId;
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final response = await _apiService.post('/auth/register', data: {
@@ -126,8 +128,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return response.data['otp']; // Returns the mock OTP code directly for verification
       }
     } catch (e) {
-      state = state.copyWith(isLoading: false);
-      return '123456'; // Fallback mock OTP code
+      String errorMessage = 'Connection failed. Please check your network or backend status.';
+      if (e is DioException && e.response != null) {
+        if (e.response?.data != null && e.response?.data is Map && e.response?.data['message'] != null) {
+          errorMessage = e.response?.data['message']?.toString() ?? 'Registration failed';
+        }
+      }
+      state = state.copyWith(isLoading: false, errorMessage: errorMessage);
+      return null;
     }
     return null;
   }
@@ -155,24 +163,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return true;
       }
     } catch (e) {
-      // Fallback verification
-      final isSupplier = (_registeredRoleId == 3 || phone.endsWith('3'));
-      final user = UserProfile(
-        id: 'new-user-id',
-        name: 'New Registered User',
-        email: 'user@example.com',
-        phone: phone,
-        roleName: isSupplier ? 'supplier' : 'buyer',
-      );
-      
-      if (isSupplier) {
-        state = AuthState(isAuthenticated: false, user: user, token: null);
-        return true;
+      String errorMessage = 'Verification failed due to a connection or server error.';
+      if (e is DioException && e.response != null) {
+        if (e.response?.data != null && e.response?.data is Map && e.response?.data['message'] != null) {
+          errorMessage = e.response?.data['message']?.toString() ?? 'Verification failed';
+        }
       }
-
-      _apiService.setToken('mock_token_${user.id}');
-      state = AuthState(isAuthenticated: true, user: user, token: 'mock_token_${user.id}');
-      return true;
+      state = state.copyWith(isLoading: false, errorMessage: errorMessage);
+      return false;
     }
     return false;
   }
@@ -195,10 +193,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return true;
       }
     } catch (e) {
-      final user = UserProfile(id: 'google-user-id', name: name, email: email, phone: '+910000000000', roleName: roleId == 3 ? 'supplier' : 'buyer');
-      _apiService.setToken('mock_token_${user.id}');
-      state = AuthState(isAuthenticated: true, user: user, token: 'mock_token_${user.id}');
-      return true;
+      String errorMessage = 'Google Authentication failed due to connection error';
+      if (e is DioException && e.response != null) {
+        if (e.response?.data != null && e.response?.data is Map && e.response?.data['message'] != null) {
+          errorMessage = e.response?.data['message']?.toString() ?? 'Authentication failed';
+        }
+      }
+      state = state.copyWith(isLoading: false, errorMessage: errorMessage);
+      return false;
     }
     return false;
   }

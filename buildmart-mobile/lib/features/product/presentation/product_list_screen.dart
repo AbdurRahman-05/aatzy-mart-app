@@ -108,30 +108,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
     }
   }
 
-  List<ProductItem> _getFallbackProducts() {
-    return [
-      ProductItem(
-        id: 'f6f6f6f6-f6f6-f6f6-f6f6-f6f6f6f6f6f6',
-        name: 'UltraTech Premium Cement OPC 53 Grade',
-        supplierName: 'UltraTech Build Solutions',
-        location: 'Mumbai, Maharashtra',
-        imageUrl: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&q=80&w=400',
-        description: 'OPC 53 Grade high-durability structural cement.',
-        pricePerUnit: 420.0,
-        unitType: 'Bag',
-      ),
-      ProductItem(
-        id: 'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a7',
-        name: 'Reinforced Steel Rebars TMT Fe 550D',
-        supplierName: 'UltraTech Build Solutions',
-        location: 'Mumbai, Maharashtra',
-        imageUrl: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&q=80&w=400',
-        description: 'High-ductility TMT rebars.',
-        pricePerUnit: 58000.0,
-        unitType: 'Metric Ton',
-      ),
-    ];
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -155,10 +132,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     setState(() => _searchQuery = val);
                     _fetchProducts();
                   },
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     hintText: 'Press enter to search...',
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                    prefixIcon: Icon(Icons.search, size: 20),
+                    contentPadding: EdgeInsets.symmetric(vertical: 12),
                     fillColor: AppColors.background,
                   ),
                 ),
